@@ -1,5 +1,7 @@
 # Project Miku
 
+<img width="1372" height="1007" alt="image" src="https://github.com/user-attachments/assets/d226f0ab-3772-4772-b3f9-1b4132cb7c6a" />
+
 Live2D 캐릭터가 데스크톱에 떠 있는 AI 어시스턴트입니다. 대화(LLM), 음성 인식(STT), 음성 합성(TTS), 립싱크·표정 연동을 지원합니다.
 
 ## 구성
