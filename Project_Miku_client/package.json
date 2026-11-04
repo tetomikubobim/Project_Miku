@@ -1,0 +1,22 @@
+{
+  "name": "project-miku-client",
+  "version": "0.1.0",
+  "description": "Lightweight Live2D desktop AI assistant client (VTube Studio model compatible)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "get-models": "node scripts/get-models.js"
+  },
+  "dependencies": {
+    "@ennuicastr/webrtcaec3.js": "0.3.0",
+    "onnxruntime-node": "^1.20.1",
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^6.5.10"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}

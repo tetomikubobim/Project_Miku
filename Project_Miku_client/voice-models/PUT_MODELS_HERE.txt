@@ -1,0 +1,6 @@
+음성 모델 폴더 (npm run get-models 로 자동 다운로드)
+
+  silero_vad.onnx   Silero VAD. 말 구간 감지 (필수는 아님: 없으면 예전 음량 방식으로 듣는다)
+  speaker.onnx      화자 인증용 임베딩 모델 (WeSpeaker ResNet34 등, 입력 [1,프레임,80] -> 출력 [1,차원]). 안 쓰면 없어도 된다.
+
+받기에 실패하면 README 의 "음성 입력" 부분을 참고해서 직접 넣으세요.

@@ -1,0 +1,38 @@
+{
+  "neutral": {
+    "expression": "natural",
+    "desc": "중립, 평범한 대화"
+  },
+  "happy": {
+    "expression": "happy",
+    "desc": "기쁨, 즐거움, 신남"
+  },
+  "sad": {
+    "expression": "sad",
+    "desc": "슬픔, 우울함, 실망, 안타까움"
+  },
+  "anger": {
+    "expression": "anger",
+    "desc": "분노, 짜증, 불만, 질투"
+  },
+  "smirk": {
+    "expression": "smirk",
+    "desc": "능글맞음, 장난스러운 미소, 짓궂은 반응"
+  },
+  "surprise": {
+    "expression": "surprise",
+    "desc": "놀람, 당황, 예상치 못한 상황에 대한 반응"
+  },
+  "fear": {
+    "expression": "fear",
+    "desc": "두려움, 공포, 불안, 위협을 느끼는 상황"
+  },
+  "disgust": {
+    "expression": "fear",
+    "desc": "혐오감, 역겨움, 질색, 불쾌함"
+  },
+  "shy": {
+    "expression": "shy",
+    "desc": "부끄러움, 수줍음, 쑥스러움, 민망함"
+  }
+}

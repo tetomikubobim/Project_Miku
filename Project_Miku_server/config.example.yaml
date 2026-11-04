@@ -1,0 +1,157 @@
+# Project Miku 서버 설정. 고친 뒤에는 서버를 재시작하세요.
+# 규칙: 들여쓰기는 스페이스(탭 금지), ':' 뒤에는 공백, '#' 뒤는 주석.
+# 주의: no, yes, on, off 같은 글자는 YAML 이 true/false 로 오해하니 "no" 처럼 따옴표로 감싸세요.
+
+host: "127.0.0.1"
+port: 3545
+public_host: ""
+# 클라이언트(앱)가 모두 끊기면 서버도 같이 종료합니다 (GPT-SoVITS 도 같이 꺼짐). 생략하면 true.
+# 서버를 먼저 켜 두고 클라이언트를 나중에 켜도 됩니다: 한 번도 접속한 적이 없으면 종료하지 않아요.
+# (통합 런처로 켜면 이 설정과 상관없이 꺼져 있어요: 서버는 런처가 끕니다.)
+shutdown_with_client: true
+shutdown_grace_seconds: 15   # 끊긴 뒤 이 시간 안에 다시 접속하면 종료를 취소 (앱 재시작/절전 복귀 대비)
+timezone: Asia/Seoul
+
+persona_file: persona.txt      # 기본 캐릭터 설정. 클라이언트 모델 폴더에 persona.txt 가 있으면 그게 우선 (README "모델별 persona")
+
+history_turns: 40
+stream: true                # 답을 만드는 대로 먼저 보내기 (글자가 먼저 나오고 음성은 문장 단위로 재생)
+# 웹 검색 (ddgs). `pip install -U ddgs` 로 설치하면 켜지고, 설치 전에는 검색 없이 동작합니다. Gemini 든 로컬 모델이든 똑같이 동작합니다.
+search:
+  enabled: true
+  engine: google            # google | duckduckgo | bing | brave | auto. 스크래핑이라 막힐 수 있어 실패하면 duckduckgo 로 자동 전환 (뉴스 검색은 google 미지원 -> duckduckgo)
+  max_results: 5
+  region: kr-kr             # 지역/언어 (us-en, jp-jp, wt-wt=전체)
+  timeout: 10
+# 장기 기억 / 긴 대화 요약 (생략하면 켜짐). 통합 런처의 "서버 설정" 탭에서 바꾼 값은 이 파일에 직접 저장됩니다 (주석은 그대로).
+memory:
+  enabled: true
+  extract_every: 6          # 내 메시지 N개마다 기억 추출 (0 이면 추출 안 함)
+  max_items: 60
+  summary: true
+  keep_turns: 20
+  summary_batch: 8
+  consolidate: true         # max_items 를 넘으면 오래된 것을 지우지 않고 비슷한 기억을 합친다
+# 질문과 관련된 과거 대화를 찾아 그 턴에만 붙입니다 (관련 기록이 없으면 아무것도 안 붙어서 토큰이 늘지 않음)
+recall:
+  enabled: true
+  max_items: 4              # 한 번에 붙이는 최대 줄 수
+  max_chars: 120            # 한 줄당 최대 글자 수
+  min_score: 4              # 이 점수보다 낮게 맞은 건 붙이지 않음 (맞은 검색어 글자 수의 합)
+use_think: true            # 행동 묘사(*표정/동작*) 사용. 속마음은 요청하지 않음
+max_output_tokens: 3072
+temperature: 1.0
+
+llm:
+  provider: gemini            # gemini | openai | groq | ollama
+  # 사고 수준: LLM 이 답하기 전에 생각하는 양. auto(모델 기본) | off | low | medium | high
+  # 모델이 지원하지 않는 값이면 자동으로 빼고 다시 보냅니다. low/medium/high 는 '최대 답변 길이'에 여유가 자동으로 더해져요 (생각에도 토큰이 쓰여서).
+  # 검색 판단/요약/기억 추출 같은 짧은 보조 호출은 이 값과 상관없이 항상 off 로 보냅니다.
+  reasoning_level: auto
+  gemini:
+    api_key: ""
+    model: gemini-3.5-flash-lite
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key: ""
+    model: ""
+  groq:                       # https://console.groq.com 에서 키 발급. 주소는 따로 안 적어도 됩니다
+    api_key: ""
+    model: ""                 # 예: openai/gpt-oss-120b, qwen/qwen3-32b  (이미지를 보려면 비전 모델)
+  ollama:                     # 내 PC 에서 도는 Ollama (https://ollama.com)
+    base_url: "http://127.0.0.1:11434/v1"
+    api_key: ""               # 로컬은 비워 두세요 (Ollama 클라우드를 쓸 때만)
+    model: ""                 # 예: qwen3:8b  (ollama list 로 확인)
+
+# 음성 인식(STT): 서버가 faster-whisper 로 직접 처리합니다 (`pip install faster-whisper`). 따로 STT 서버를 켤 필요 없음.
+# 클라이언트의 마이크는 이 서버로 음성을 보냅니다 (클라이언트 config.json 의 stt.url 은 비워 두면 됨).
+stt:
+  enabled: false
+  model: large-v3-turbo               # tiny | base | small | medium | large-v3 | large-v3-turbo | distil-large-v3 (클수록 정확하고 느림). 처음 쓸 때 모델을 내려받음
+  device: auto               # auto(GPU 가 있으면 GPU) | cpu | cuda. GPU 라이브러리가 없어 실패하면 자동으로 CPU 로 전환
+  compute_type: auto         # auto | int8 | int8_float16 | float16 | float32
+  language: ko               # 비우면 자동 감지
+  beam_size: 1               # 클수록 정확하지만 느림
+  prompt: ""                 # 자주 나오는 이름/용어 (예: "미쿠, 하츠네")
+  preload: true              # 서버를 켤 때 모델을 미리 불러옴 (false 면 처음 말했을 때 불러옴)
+  cpu_threads: 0             # 0 = 기본값
+  download_root: ""          # 모델을 저장할 폴더 (비우면 기본 캐시)
+
+tts:
+  enabled: true               # false 면 음성 없이 글자만
+  provider: edge              # edge | gptsovits
+  output_sample_rate: 0   # 클라이언트로 보내는 음성의 샘플레이트를 고정 (24k/40k 등 섞여도 하나로). 0 이면 변환 안 함
+
+  # ---- provider 가 edge 일 때 사용 (설치만 하면 됨, 목소리 복제 없음) ----
+  edge:
+    voice: ko-KR-SunHiNeural  # 목록: edge-tts --list-voices
+    rate: "+12%"              # 속도/음높이/볼륨은 부호가 붙어 있으니 반드시 따옴표로
+    pitch: "+45Hz"
+    volume: "+0%"
+    emotions:                 # 감정별로 위 기본값에 '더하는' 값 (예: 기본 pitch +12Hz 에 happy +2Hz = +14Hz). 지워도 됨
+      happy:    { rate: "+0%",  pitch: "+0Hz" }
+      sad:      { rate: "+0%", pitch: "+0Hz" }
+      angry:    { rate: "+0%",  pitch: "+0Hz" }
+      surprise: { rate: "+0%", pitch: "+0Hz" }
+    timeout: 30               # 모든 시도를 합친 최대 대기(초)
+    # attempt_timeout: 12    # 시도 하나가 멈췄다고 보는 시간(초). 멈추면 끊고 다시 시도. 기본 12
+    # retries: 2             # 실패/멈춤 때 다시 시도할 횟수. 기본 2 (0 이면 재시도 안 함)
+
+  # ---- RVC: Edge TTS 음성을 다른 음색(예: 츠쿠요미짱)으로 바꿈. provider 가 edge 일 때만 적용됨 ----
+  # rvc-python(https://github.com/daswer123/rvc-python)의 API 서버를 서버가 같이 켜고 끈다. 설치/모델 준비는 README 참고.
+  rvc:
+    enabled: true               # true 로 바꾸면 적용
+    in_tail_pad_ms: 200   # RVC에 보내기 전 끝 무음 (기존 rvc.tail_pad_ms)
+    tail_pad_ms: 80       # RVC 변환 후 끝 무음 (기존 tts.tail_pad_ms)
+    head_pad_ms: 10       # RVC 변환 후 앞 무음 (기존 tts.head_pad_ms)
+    url: "http://127.0.0.1:5050"
+    model: "tsukuyomi"               # <launch.dir>/rvc_models/<model>/ 폴더 이름 (그 안에 .pth, .index)
+    pitch: 0                    # 반음 단위 음높이 이동 (+12 = 한 옥타브 위). 목소리가 어색하면 이것부터 조절
+    device: "cuda:0"            # GPU 가 없으면 "cpu:0"
+    params: {}                  # 고급: f0method, index_rate, filter_radius, resample_sr, rms_mix_rate, protect
+    fallback: true              # 변환에 실패하면 원래 Edge 음성으로 (false 면 음성 없이 글자만)
+    timeout: 30
+    launch:
+      enabled: true             # false 면 직접 켠 RVC 를 그대로 사용
+      python: "" # RVC 를 설치한 가상환경의 python
+      dir: "" # 이 폴더 안에 rvc_models 폴더가 있어야 함
+      wait_seconds: 120
+      log_file: rvc.log
+
+  # ---- provider 가 gptsovits 일 때 사용 (참조 음성으로 복제. 아래 launch 설정을 쓰면 서버가 GPT-SoVITS 를 대신 켜 줌) ----
+  url: "http://127.0.0.1:9880"
+  # ---- provider 가 gptsovits 일 때만: 서버를 켤 때 GPT-SoVITS 도 자동으로 켜고, 서버가 꺼지면 같이 끈다 ----
+  launch:
+    enabled: false             # false 면 자동 실행 안 함 (직접 켜 두는 경우). 이미 켜져 있으면 새로 켜지 않고 그대로 씀
+    dir: ""   # GPT-SoVITS 폴더 (api_v2.py 가 있는 곳)
+    # command: ["runtime/python.exe", "api_v2.py", "-a", "127.0.0.1", "-p", "9880", "-c", "GPT_SoVITS/configs/tts_infer.yaml"]
+    wait_seconds: 180         # 모델 불러오기를 기다리는 최대 시간 (그동안 대화는 글자로만 나감)
+    log_file: gptsovits.log   # GPT-SoVITS 의 출력이 여기 쌓임
+  text_lang: "ko"
+  # 학습한 가중치를 쓰려면 경로를 적으세요 (비우면 GPT-SoVITS 가 켜질 때 tts_infer.yaml 에서 읽은 가중치를 그대로 씀).
+  # 상대 경로는 GPT-SoVITS 폴더 기준. 바뀌면 서버가 GPT-SoVITS 에 /set_gpt_weights, /set_sovits_weights 로 알려 줌.
+  # 모델(캐릭터)마다 다르게 쓰려면 클라이언트 설정 > 모델 탭의 "음성" 에 적으면 이 값을 덮어씀.
+  gpt_weights_path: ""
+  sovits_weights_path: ""
+  ref_audio_path: ""
+  prompt_text: ""
+  prompt_lang: "ko"
+  emotion_refs: {}
+  params:
+    batch_size: 1
+    parallel_infer: true
+    split_bucket: true
+    seed: -1
+    repetition_penalty: 1.35
+    speed_factor: 1.0
+    top_k: 15
+    top_p: 1.0
+    temperature: 1.0
+    text_split_method: cut5
+  timeout: 60
+
+paths:
+  db: miku.db            # 모델 이름 없이 쓸 때의 기록 + 모델별 기록의 파일 이름
+  chat_log: chat_log     # 모델별 대화 기록 폴더: chat_log/<모델 폴더 이름>/miku.db
+  audio: audio
+  uploads: uploads

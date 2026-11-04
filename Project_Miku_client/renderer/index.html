@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' file: blob: data:; script-src 'self' 'unsafe-eval' file:; style-src 'self' 'unsafe-inline'; connect-src 'self' file: blob: data: ws: wss: http: https:; media-src 'self' file: blob: data:; img-src 'self' file: blob: data:;" />
+  <title>Project Miku</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; user-select: none; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    #stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    /* 가사창이 뜰 때 모델에 핀 고정으로 같이 뜨는 그림(마이크 스탠드). 마우스는 받지 않는다 (편집 모드에서의 이동/크기 조절은 app.js 가 직접 판정) */
+    #lyricsItem { position: fixed; left: 0; top: 0; pointer-events: none; user-select: none; opacity: 0; visibility: hidden; transition: opacity 0.35s ease, visibility 0s 0.35s; }
+    #lyricsItem.on { opacity: 1; visibility: visible; transition: opacity 0.35s ease; }
+    body.editing #lyricsItem { outline: 1px dashed rgba(77, 163, 255, 0.85); transition: none; }
+
+    /* 말풍선 + 입력창 묶음. 위치/너비/글자 크기는 app.js 가 설정(config.ui)대로 정한다.
+       말풍선이 위, 입력창이 그 아래(머리 바로 위) */
+    #ui {
+      position: absolute; left: 0; width: 300px; bottom: 50%;
+      display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
+      transition: bottom 0.25s ease-out; /* 머리를 따라 부드럽게 */
+    }
+    #bubble {
+      display: none; flex: 0 1 auto; min-height: 0; overflow-y: auto;
+      padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,0.92);
+      color: #222; font-size: 14px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      white-space: pre-wrap; word-break: break-word;
+      user-select: text; cursor: text; /* 드래그해서 복사할 수 있다 */
+    }
+    /* 가사: 말풍선과 같은 자리. 말풍선이 떠 있으면 숨는다 (lyrics.js). 윗줄=지금 줄, 아랫줄=다음 줄(흐리게) */
+    #lyrics {
+      display: none; flex: 0 0 auto; box-sizing: border-box; padding: 8px 14px; border-radius: 14px; text-align: center;
+      background: rgba(18,20,28,0.58); color: #fff; font-weight: 600; line-height: 1.45; pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.85); word-break: keep-all; overflow-wrap: anywhere; box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+    #lyrics.nobg { background: transparent; box-shadow: none; text-shadow: 0 0 4px #000, 0 0 2px #000, 1px 1px 2px #000; }
+    #lyrics .l1 { min-height: 1.45em; color: var(--c1, inherit); }
+    #lyrics .l2 { color: var(--c2, inherit); }
+    #lyrics .l3 { color: var(--c3, inherit); }
+    #lyrics .l1 { font-size: var(--fs1, 16px); }
+    #lyrics .l2 { min-height: 1.3em; font-size: var(--fs2, 16px); opacity: var(--l2, 0.45); }
+    #lyrics .l3 { display: none; font-size: var(--fs3, 16px); opacity: var(--l2, 0.45); }
+    #lyrics.full .l2, #lyrics.full .l3 { opacity: 1; }   /* 발음/번역 줄은 흐리지 않고 원문과 같은 흰색 */
+    #lyrics .badge { display: none; margin-bottom: 3px; font-size: 0.72em; font-weight: 500; color: #9fd0ff; }
+    #lyrics .pop { animation: lyricIn 0.18s ease-out; }
+    @keyframes lyricIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    #bubble .tag {
+      display: block; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #c9d3e3;
+      font: 11px/1.4 "Malgun Gothic", Consolas, monospace; color: #5b7ca8;
+    }
+    #micBadge {
+      display: none; flex: none; align-self: flex-start; padding: 3px 10px; border-radius: 999px;
+      background: rgba(24,27,35,0.9); color: #e8ecf3; font-size: 12px; pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    #micBadge.speaking { background: #e5484d; color: #fff; }
+    #inputBar { display: none; flex: none; position: relative; }
+    #btnSessions {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; padding: 0;
+      border: none; border-radius: 8px; background: transparent; color: #5b6b85; font-size: 17px; line-height: 1; cursor: pointer;
+    }
+    #btnSessions:hover { background: rgba(77,163,255,0.16); color: #1c6fd1; }
+    /* 중단 버튼: 입력창 왼쪽. 생각/말하는 중에만 켜진다 (평소엔 흐리게) */
+    #btnStop {
+      position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; padding: 0;
+      border: none; border-radius: 8px; background: transparent; color: #8a94a6; font-size: 15px; line-height: 1; cursor: default; opacity: 0.35;
+    }
+    #btnStop.active { opacity: 1; color: #e5484d; cursor: pointer; }
+    #btnStop.active:hover { background: rgba(229,72,77,0.16); }
+    /* 캡처해 둔 이미지 (보내기 전 대기 중) */
+    #pendingShot {
+      display: none; flex: none; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 10px;
+      background: rgba(24,27,35,0.92); color: #e8ecf3; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    #pendingShot img { height: 40px; max-width: 90px; object-fit: cover; border-radius: 6px; flex: none; }
+    #pendingShot .ps-label { flex: 1; min-width: 0; }
+    #pendingShot button { flex: none; border: 0; border-radius: 6px; background: #323848; color: #e8ecf3; padding: 2px 8px; cursor: pointer; font: inherit; }
+    #pendingShot button:hover { background: #e5484d; }
+    #input {
+      width: 100%; box-sizing: border-box; padding: 9px 40px 9px 40px; border-radius: 12px; border: none; outline: none;
+      background: rgba(255,255,255,0.95); font-size: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      user-select: text;
+    }
+
+    /* ----- 부분 캡처: 영역 선택 ----- */
+    #selectLayer { display: none; position: fixed; inset: 0; z-index: 50; cursor: crosshair; background: rgba(0,0,0,0.28); }
+    #selectLayer.dragging { background: transparent; }
+    #selBox { display: none; position: absolute; border: 2px solid #4da3ff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); box-sizing: border-box; }
+    #selHint { position: absolute; left: 50%; top: 24px; transform: translateX(-50%); padding: 8px 14px; border-radius: 10px;
+      background: rgba(24,27,35,0.92); color: #e8ecf3; font-size: 13px; }
+
+    /* ----- 편집 모드 ----- */
+    body.editing #ui { transition: none; }
+    #ui.editing { outline: 2px dashed #4da3ff; outline-offset: 4px; cursor: move; }
+    #ui.editing * { pointer-events: none; } /* 상자 어디를 잡아도 드래그되게 */
+    body.editing { cursor: default; }
+
+    /* ----- 대화 목록 패널 ----- */
+    #sessPanel {
+      display: none; position: fixed; width: 320px; box-sizing: border-box; flex-direction: column; gap: 8px; z-index: 20;
+      padding: 10px 12px 12px; border-radius: 12px; background: rgba(24,27,35,0.96); color: #e8ecf3;
+      font: 12px/1.4 "Malgun Gothic", sans-serif; box-shadow: 0 4px 18px rgba(0,0,0,0.45); user-select: none;
+    }
+    #sessPanel .sp-head { display: flex; align-items: center; gap: 6px; flex: none; }
+    #sessPanel .sp-head .sp-all.danger, #sessPanel .sp-head .sp-all.danger:hover { background: #e5484d; color: #fff; }
+    #sessPanel .sp-title { flex: 1; font-weight: 700; font-size: 13px; }
+    #sessPanel button { border: 0; border-radius: 8px; cursor: pointer; font: inherit; background: #323848; color: #e8ecf3; padding: 5px 9px; }
+    #sessPanel button:disabled { cursor: default; }
+    #sessPanel button.primary { background: #4da3ff; color: #08121f; font-weight: 700; }
+    #sessPanel .sp-list { flex: 0 1 auto; max-height: 40%; min-height: 56px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    #sessPanel .sp-item { display: flex; align-items: center; gap: 4px; padding: 7px 8px; border-radius: 8px; background: #2b3140; cursor: pointer; }
+    #sessPanel .sp-item:hover { background: #353c4e; }
+    #sessPanel .sp-item.active { background: #2d4a73; outline: 1px solid #4da3ff; cursor: default; }
+    #sessPanel .sp-main { flex: 1; min-width: 0; }
+    #sessPanel .sp-name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #sessPanel .sp-meta { color: #9aa6ba; font-size: 11px; }
+    #sessPanel .sp-btn { flex: none; opacity: 0; padding: 3px 6px; background: transparent; }
+    #sessPanel .sp-item:hover .sp-btn, #sessPanel .sp-item.confirm .sp-btn { opacity: 1; }
+    #sessPanel .sp-btn:hover { background: #3f475c; }
+    #sessPanel .sp-btn.danger, #sessPanel .sp-btn.danger:hover { background: #e5484d; color: #fff; opacity: 1; }
+    #sessPanel .sp-rename { width: 100%; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; border: 1px solid #4da3ff; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text; }
+    #sessPanel .sp-sep { flex: none; color: #8fc2ff; font-size: 11px; border-top: 1px solid #323848; padding-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #sessPanel .sp-log { flex: 1 1 auto; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; user-select: text; }
+    #sessPanel .msg { max-width: 88%; padding: 6px 9px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; }
+    #sessPanel .msg.user { align-self: flex-end; background: #4da3ff; color: #08121f; }
+    #sessPanel .msg.ai { align-self: flex-start; background: #3a4156; }
+    #sessPanel .msg.note { align-self: center; max-width: 100%; background: transparent; color: #9aa6ba; font-size: 11px; }
+    #sessPanel .sp-empty { color: #9aa6ba; text-align: center; padding: 10px 0; }
+
+    #sessPanel .sp-bar { display: flex; gap: 6px; flex: none; }
+    #sessPanel .sp-search { flex: 1; min-width: 0; padding: 5px 8px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text; }
+    #sessPanel .sp-search:focus { border-color: #4da3ff; }
+    #sessPanel .sp-ex { flex: none; padding: 5px 7px; font-size: 11px; white-space: nowrap; }
+
+    /* ----- 설정 창 ----- */
+    #settingsDlg {
+      display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 440px; max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 32px); box-sizing: border-box; flex-direction: column; gap: 8px; z-index: 40; padding: 12px 14px 14px;
+      border-radius: 12px; background: rgba(24,27,35,0.97); color: #e8ecf3; font: 12px/1.45 "Malgun Gothic", sans-serif;
+      box-shadow: 0 4px 22px rgba(0,0,0,0.55); user-select: none;
+      overflow: hidden; resize: both; min-width: 360px; min-height: 260px;   /* 오른쪽 아래 모서리를 끌어 크기를 바꾼다 */
+    }
+    /* 가사 직접 고르기 패널 */
+    #lyricsPicker {
+      display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px; max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 32px); box-sizing: border-box; flex-direction: column; gap: 8px; z-index: 41; padding: 12px 14px 14px;
+      border-radius: 12px; background: rgba(24,27,35,0.97); color: #e8ecf3; font: 12px/1.45 "Malgun Gothic", sans-serif;
+      box-shadow: 0 4px 22px rgba(0,0,0,0.55); user-select: none;
+    }
+    #lyricsPicker .lp-head { display: flex; align-items: center; gap: 6px; flex: none; }
+    #lyricsPicker .lp-title { flex: 1; font-weight: 700; font-size: 14px; }
+    #lyricsPicker button { border: 0; border-radius: 8px; cursor: pointer; font: inherit; background: #323848; color: #e8ecf3; padding: 5px 10px; }
+    #lyricsPicker button:disabled { cursor: default; opacity: 0.45; }
+    #lyricsPicker button.primary { background: #4da3ff; color: #08121f; font-weight: 700; }
+    #lyricsPicker .lp-x { background: transparent; padding: 2px 6px; }
+    #lyricsPicker .lp-track { flex: none; color: #aab3c5; user-select: text; cursor: text; }   /* 지금 곡의 가수/제목을 복사해 검색어로 쓸 수 있다 */
+    #lyricsPicker .lp-search { display: flex; gap: 6px; flex: none; }
+    #lyricsPicker .lp-input { flex: 1; min-width: 0; box-sizing: border-box; padding: 5px 8px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text; }
+    #lyricsPicker .lp-list { flex: 1 1 auto; min-height: 90px; max-height: 240px; overflow-y: auto; border: 1px solid #323848; border-radius: 8px; }
+    #lyricsPicker .lp-item { padding: 6px 9px; cursor: pointer; border-bottom: 1px solid #262b38; }
+    #lyricsPicker .lp-item:hover { background: #2a3040; }
+    #lyricsPicker .lp-item.selected { background: #26405f; }
+    #lyricsPicker .lp-top { display: flex; align-items: center; gap: 6px; }
+    #lyricsPicker .lp-badge { flex: none; font-size: 10.5px; padding: 0 6px; border-radius: 6px; background: #3a4156; color: #cfd6e4; }
+    #lyricsPicker .lp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; user-select: text; }
+    #lyricsPicker .lp-sub { color: #8f99ad; font-size: 11px; margin-top: 1px; user-select: text; }
+    #lyricsPicker .lp-preview { flex: none; min-height: 60px; padding: 7px 9px; border-radius: 8px; background: #141821; }
+    #lyricsPicker .lp-line { color: #dfe6f3; user-select: text; }
+    #lyricsPicker .lp-hint { color: #8f99ad; margin-top: 3px; }
+    #lyricsPicker .lp-warn { color: #ffb86b; margin-top: 3px; }
+    #lyricsPicker .lp-msg { white-space: pre-line; flex: none; min-height: 16px; color: #aab3c5; }
+    #lyricsPicker .lp-foot { display: flex; gap: 6px; justify-content: flex-end; flex: none; }
+    #settingsDlg .st-head { display: flex; align-items: center; gap: 6px; flex: none; cursor: move; } /* 제목줄을 끌어 창을 옮긴다 */
+    #settingsDlg .st-title { flex: 1; font-weight: 700; font-size: 14px; }
+    #settingsDlg button { border: 0; border-radius: 8px; cursor: pointer; font: inherit; background: #323848; color: #e8ecf3; padding: 5px 10px; }
+    #settingsDlg button:disabled { cursor: default; opacity: 0.45; }
+    #settingsDlg button.primary { background: #4da3ff; color: #08121f; font-weight: 700; }
+    #settingsDlg button.danger, #settingsDlg button.danger:hover { background: #e5484d; color: #fff; }
+    #settingsDlg .st-tabs { display: flex; gap: 4px; flex: none; border-bottom: 1px solid #323848; padding-bottom: 6px; }
+    #settingsDlg .st-tab { background: transparent; color: #9aa6ba; }
+    #settingsDlg .st-tab.active { background: #323848; color: #e8ecf3; font-weight: 700; }
+    #settingsDlg .st-body { flex: 1 1 auto; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+    #settingsDlg .st-group { margin-top: 6px; color: #8fc2ff; font-size: 11px; font-weight: 700; border-bottom: 1px solid #2a3040; padding-bottom: 2px; }
+    #settingsDlg .st-group.toggle { cursor: pointer; user-select: none; }
+    #settingsDlg .st-group.toggle:hover { color: #b9dbff; }
+    #settingsDlg .st-group.toggle::before { content: '▾'; display: inline-block; width: 12px; }
+    #settingsDlg .st-group.toggle.collapsed::before { content: '▸'; }
+    #settingsDlg .st-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    #settingsDlg .st-label { flex: 1 1 55%; }
+    #settingsDlg .st-row input[type=text], #settingsDlg .st-row input[type=password], #settingsDlg .st-row select, #settingsDlg .st-add, #settingsDlg .st-memedit {
+      flex: 0 0 44%; min-width: 0; box-sizing: border-box; padding: 5px 8px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text;
+    }
+    /* 색 입력: 색 상자 + R G B (위의 text 입력 규칙이 44% 로 늘리는 걸 되돌린다) */
+    #settingsDlg .st-color { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+    #settingsDlg .st-color input[type=color] { flex: 0 0 46px; width: 46px; height: 30px; padding: 2px; border: 1px solid #3a4156; border-radius: 8px; background: #141821; cursor: pointer; }
+    #settingsDlg .st-color input[type=text] { flex: 0 0 38px; width: 38px; padding: 4px 2px; text-align: center; }
+    #settingsDlg .st-row input:focus, #settingsDlg .st-add:focus, #settingsDlg .st-memedit:focus { border-color: #4da3ff; }
+    #settingsDlg .st-note, #settingsDlg .st-empty { color: #9aa6ba; font-size: 11px; padding: 4px 0; }
+    #settingsDlg .st-empty { text-align: center; padding: 14px 0; }
+    #settingsDlg .st-foot { flex: none; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #323848; padding-top: 8px; }
+    #settingsDlg .st-msg { min-height: 16px; color: #8fc2ff; font-size: 11.5px; }
+    #settingsDlg .st-btns { display: flex; gap: 6px; justify-content: flex-end; }
+    #settingsDlg .st-addrow { display: flex; gap: 6px; }
+    #settingsDlg .st-addrow .st-add { flex: 1; }
+    #settingsDlg .st-mem { display: flex; align-items: center; gap: 4px; background: #2a3040; border-radius: 8px; padding: 4px 6px; }
+    #settingsDlg .st-memtext { flex: 1; word-break: break-word; user-select: text; }
+    #settingsDlg .st-memedit { flex: 1; }
+    #settingsDlg .st-ib { background: transparent; padding: 2px 6px; }
+    #settingsDlg .st-persona { width: 100%; box-sizing: border-box; min-height: 120px; resize: vertical; padding: 6px 8px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text; }
+    #settingsDlg .st-persona:focus, #settingsDlg .st-emo input:focus { border-color: #4da3ff; }
+    #settingsDlg .st-emo { display: flex; flex-direction: column; gap: 3px; background: #2a3040; border-radius: 8px; padding: 5px 6px; }
+    #settingsDlg .st-emoline { display: flex; align-items: center; gap: 4px; }
+    #settingsDlg .st-emotag { flex: 0 0 88px; }
+    #settingsDlg .st-emoexpr { flex: 1 1 auto; min-width: 0; }
+    #settingsDlg .st-emo input, #settingsDlg .st-emo select { box-sizing: border-box; padding: 4px 7px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; user-select: text; }
+    #settingsDlg .st-emodesc { width: 100%; font-size: 11px; }
+    #settingsDlg .st-poseline { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; max-width: 62%; }
+    #settingsDlg .st-poseline select { flex: 1 1 auto; min-width: 0; box-sizing: border-box; padding: 4px 7px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; }
+    #settingsDlg .st-hk { display: flex; align-items: center; gap: 6px; }
+    #settingsDlg .st-hk .st-label { flex: 1 1 auto; min-width: 0; }
+    #settingsDlg .st-key { flex: 0 0 auto; min-width: 150px; text-align: center; font-family: Consolas, monospace; font-size: 11.5px; background: #141821; border: 1px solid #3a4156; border-radius: 8px; color: #e8ecf3; padding: 4px 8px; cursor: pointer; }
+    #settingsDlg .st-key.empty { color: #7d8798; }
+    #settingsDlg .st-key.changed { border-color: #e0b84d; }
+    #settingsDlg .st-key.recording { border-color: #4da3ff; color: #8fc2ff; }
+    #settingsDlg .st-hkwarn { color: #ffb86b; font-size: 12px; }
+
+    /* ----- 먼저 말 거는 간격 입력 상자 ----- */
+    #intervalDlg {
+      display: none; position: fixed; left: 50%; top: 30%; transform: translateX(-50%); width: 300px; box-sizing: border-box;
+      flex-direction: column; gap: 8px; z-index: 30; padding: 14px 16px 14px; border-radius: 12px;
+      background: rgba(24,27,35,0.97); color: #e8ecf3; font: 12px/1.5 "Malgun Gothic", sans-serif;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.5); user-select: none;
+    }
+    #intervalDlg .id-title { font-weight: 700; font-size: 13px; }
+    #intervalDlg .id-hint { color: #9aa6ba; font-size: 11px; }
+    #intervalDlg .id-hint code { color: #8fc2ff; }
+    #intervalDlg label { display: flex; flex-direction: column; gap: 3px; }
+    #intervalDlg label small { color: #9aa6ba; font-size: 10.5px; }
+    #intervalDlg input { padding: 7px 9px; border-radius: 8px; border: 1px solid #3a4156; outline: none; background: #141821; color: #e8ecf3; font: inherit; font-size: 13px; user-select: text; }
+    #intervalDlg input:focus { border-color: #4da3ff; }
+    #intervalDlg .id-err { min-height: 16px; color: #ff8b8f; font-size: 11.5px; }
+    #intervalDlg .id-row { display: flex; gap: 6px; justify-content: flex-end; }
+    #intervalDlg button { border: 0; border-radius: 8px; cursor: pointer; font: inherit; background: #323848; color: #e8ecf3; padding: 6px 14px; }
+    #intervalDlg button.primary { background: #4da3ff; color: #08121f; font-weight: 700; }
+
+    #editPanel {
+      display: none; position: absolute; left: 8px; top: 8px; width: 232px; box-sizing: border-box;
+      padding: 10px 12px 12px; border-radius: 12px; background: rgba(24,27,35,0.94); color: #e8ecf3;
+      font-size: 12px; line-height: 1.4; box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+    }
+    body.editing #editPanel { display: block; }
+    #editPanel .title { font-weight: 700; font-size: 13px; }
+    #editPanel .hint { margin: 4px 0 2px; color: #9aa6ba; font-size: 11px; }
+    #editPanel label { display: flex; justify-content: space-between; margin-top: 9px; }
+    #editPanel label span { color: #8fc2ff; font-variant-numeric: tabular-nums; }
+    #editPanel input[type=range] { width: 100%; margin: 2px 0 0; }
+    #editPanel .row { display: flex; gap: 6px; margin-top: 12px; }
+    #editPanel button {
+      flex: 1; padding: 6px 0; border: 0; border-radius: 8px; cursor: pointer; font: inherit;
+      background: #323848; color: #e8ecf3;
+    }
+    #editPanel .row.fine { margin-top: 4px; }
+    #editPanel button.primary { background: #4da3ff; color: #08121f; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <img id="lyricsItem" alt="" draggable="false" />
+  <div id="ui">
+    <div id="micBadge"></div>
+    <div id="lyrics"></div>
+    <div id="bubble"></div>
+    <div id="pendingShot"><img id="pendingImg" alt="" /><span class="ps-label">📸 캡처 첨부됨 · 메시지 입력 후 Enter</span><button id="pendingX" title="첨부 취소">✕</button></div>
+    <div id="inputBar"><button id="btnStop" title="생각/말하기 중단" aria-label="중단">⏹</button><input id="input" placeholder="메시지 입력 후 Enter (Esc로 닫기)" /><button id="btnSessions" title="대화 목록 (Ctrl+Alt+S)">☰</button></div>
+  </div>
+
+  <div id="sessPanel"></div>
+  <div id="intervalDlg"></div>
+  <div id="settingsDlg"></div>
+  <div id="lyricsPicker"></div>
+
+  <div id="selectLayer"><div id="selBox"></div><div id="selHint">드래그해서 보낼 영역 선택 · Esc / 우클릭 취소</div></div>
+
+  <div id="editPanel">
+    <div class="title">편집 모드</div>
+    <div class="hint">모델을 끌어서 화면 어디로든 이동 · 말풍선 상자도 끌어서 이동 · 모델 위에서 휠로 크기 조절<br>가사 마이크 스탠드(점선)도 끌어서 이동 · 그 위에서 휠로 크기 조절 (모델에 붙어 다녀요)</div>
+    <label>모델 크기 <span id="vScale"></span></label>
+    <input id="rScale" type="range" min="0.3" max="2.5" step="0.01" />
+    <div class="row fine"><button id="btnScaleDown">− 1%</button><button id="btnScaleUp">+ 1%</button></div>
+    <label>입력창 너비 <span id="vWidth"></span></label>
+    <input id="rWidth" type="range" min="160" max="700" step="2" />
+    <label>글자 크기 (대사창) <span id="vFont"></span></label>
+    <input id="rFont" type="range" min="11" max="24" step="1" />
+    <label>가사 1줄(원문) 글자 크기 <span id="vLy1"></span></label>
+    <input id="rLy1" type="range" min="10" max="40" step="1" />
+    <label>가사 2줄(발음/다음 줄) 글자 크기 <span id="vLy2"></span></label>
+    <input id="rLy2" type="range" min="10" max="40" step="1" />
+    <label>가사 3줄(번역) 글자 크기 <span id="vLy3"></span></label>
+    <input id="rLy3" type="range" min="10" max="40" step="1" />
+    <label>가사 마이크 스탠드 크기 (모델 높이 대비) <span id="vItem"></span></label>
+    <input id="rItem" type="range" min="5" max="300" step="1" />
+    <div class="row"><button id="btnItemReset">스탠드 위치/크기 초기화</button></div>
+    <div class="row">
+      <button id="btnReset">초기화</button>
+      <button id="btnDone" class="primary">완료</button>
+    </div>
+  </div>
+
+  <!-- 필요한 라이브러리: Cubism Core 는 vendor/ 에 직접 넣어야 합니다 (README 참고) -->
+  <script src="../vendor/live2dcubismcore.min.js"></script>
+  <script src="../node_modules/pixi.js/dist/browser/pixi.min.js"></script>
+  <script src="../node_modules/pixi-live2d-display/dist/cubism4.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

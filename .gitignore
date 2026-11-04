@@ -1,0 +1,49 @@
+# ===== 비밀 / 개인 설정 (절대 커밋하지 않기) =====
+# 서버: config.example.yaml 을 복사해서 config.yaml 을 만들고 API 키를 넣습니다
+config.yaml
+config.yaml.bak
+config.yaml.migrated.bak
+config.local.json
+.env
+.env.*
+# 클라이언트: 기본값은 config.default.json 에 있습니다 (config.json 은 개인 설정)
+config.json
+config.json.bak
+# 런처 개인 설정
+launcher.json
+
+# ===== 실행하면 생기는 데이터 =====
+*.db
+*.db-wal
+*.db-shm
+chat_log/
+uploads/
+audio/*.wav
+logs/
+*.log
+miku.log
+lyrics-cache/
+speaker-profile*
+
+# ===== 설치/빌드 산출물 (런처 설치 탭이나 빌드로 다시 만들 수 있음) =====
+venv/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+tools/
+build/
+dist/
+rvc_models/
+voice-models/*.onnx
+# 런처 exe 는 저장소 대신 GitHub Releases 로 배포합니다
+MikuLauncher.exe
+_internal/
+*.zip
+*.z[0-9][0-9]
+
+# ===== 기타 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

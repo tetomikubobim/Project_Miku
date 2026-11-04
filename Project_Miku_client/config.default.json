@@ -1,0 +1,74 @@
+{
+  "serverUrl": "ws://127.0.0.1:3545/ws",
+  "model": "Hiyori",
+  "scale": 1.8,
+  "idleMotion": true,
+  "passthrough": true,
+  "captureExcludeSelf": false,
+  "bubbleSeconds": 6,
+  "emotionAliases": {
+    "neutral": "",
+    "happy": "",
+    "sad": "",
+    "anger": "",
+    "smirk": "",
+    "surprise": "",
+    "fear": "",
+    "disgust": ""
+  },
+  "modelOffset": {
+    "x": 119,
+    "y": 416
+  },
+  "ui": {
+    "width": 300,
+    "fontSize": 16,
+    "offsetX": -1,
+    "offsetY": -3
+  },
+  "clickThroughModel": false,
+  "window": {
+    "width": 520,
+    "height": 760
+  },
+  "showBubble": true,
+  "screenShare": false,
+  "proactive": {
+    "enabled": false,
+    "minMinutes": 5,
+    "maxMinutes": 10
+  },
+  "gaze": {
+    "enabled": true,
+    "radius": 500,
+    "deadZone": 24,
+    "strength": 0.4,
+    "head": true,
+    "idleSeconds": 10
+  },
+  "showThink": true,
+  "showEmotionTag": false,
+  "speaker": {
+    "enabled": true,
+    "threshold": 0.3
+  },
+  "lyrics": {
+    "line2": "trans",
+    "sources": "alsong+lrclib",
+    "lipSpeed": 0.95,
+    "enabled": true,
+    "fontSize": 20,
+    "size1": 18,
+    "size2": 18,
+    "size3": 18
+  },
+  "hotkeys": {
+    "capturePartial": "F10",
+    "captureFull": "Shift+F10",
+    "toggleScreenShare": "F11",
+    "lyricsEarlier": "PageUp",
+    "lyricsLater": "PageDown"
+  },
+  "proactiveScreen": false,
+  "audioLatency": 0.1
+}

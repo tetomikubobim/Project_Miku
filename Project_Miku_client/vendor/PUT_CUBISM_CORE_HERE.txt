@@ -1,0 +1,1 @@
+Live2D Cubism Core(live2dcubismcore.min.js)를 여기에 넣으세요. README 참고.

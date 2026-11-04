@@ -1,0 +1,1 @@
+VTube Studio 모델 폴더를 models/<이름>/ 으로 복사하세요.

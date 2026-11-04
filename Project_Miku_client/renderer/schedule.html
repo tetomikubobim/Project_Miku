@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>일정 관리</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f6f6f8; --fg:#1d1d22; --card:#fff; --line:#dcdce2; --accent:#3b82f6; --muted:#777; --danger:#d33; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#1c1c21; --fg:#ececf1; --card:#27272e; --line:#3a3a44; --muted:#9a9aa6; } }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:14px/1.45 "Malgun Gothic", system-ui, sans-serif; }
+    h1 { font-size:17px; margin:0 0 12px; }
+    h2 { font-size:13px; margin:18px 0 6px; color:var(--muted); font-weight:600; }
+    form { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; display:grid; gap:8px; }
+    label { display:grid; gap:3px; font-size:12px; color:var(--muted); }
+    input, select, button { font:inherit; color:inherit; }
+    input, select { padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .actions { display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+    .err { color:var(--danger); font-size:12px; margin-right:auto; }
+    button { padding:6px 12px; border-radius:6px; border:1px solid var(--line); background:var(--card); cursor:pointer; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    button.danger:hover { border-color:var(--danger); color:var(--danger); }
+    ul { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+    li { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 10px; display:grid; grid-template-columns:1fr auto; gap:2px 8px; }
+    li.editing { border-color:var(--accent); }
+    .when { font-size:12px; color:var(--muted); grid-column:1; }
+    .text { grid-column:1; word-break:break-all; }
+    .btns { grid-column:2; grid-row:1 / span 2; display:flex; gap:4px; align-items:center; }
+    .btns button { padding:3px 8px; font-size:12px; }
+    .empty { color:var(--muted); padding:10px 2px; }
+    .badge { display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; background:var(--accent); color:#fff; margin-left:4px; }
+  </style>
+</head>
+<body>
+  <h1>📅 일정 관리</h1>
+  <form id="form" autocomplete="off">
+    <label>내용 (예: 미팅, 병원 예약)
+      <input id="text" maxlength="200" required />
+    </label>
+    <div class="row">
+      <label>날짜와 시간 <input id="at" type="datetime-local" required /></label>
+      <label>반복
+        <select id="repeat">
+          <option value="">안 함</option><option value="daily">매일</option>
+          <option value="weekdays">평일마다</option><option value="weekly">매주 (같은 요일)</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <span class="err" id="err"></span>
+      <button type="button" id="cancel" hidden>수정 취소</button>
+      <button type="submit" class="primary" id="submit">추가</button>
+    </div>
+  </form>
+  <h2>예정된 일정</h2>
+  <ul id="list"></ul>
+  <h2 id="mediaHead" hidden>예약된 음악 명령</h2>
+  <ul id="media"></ul>
+  <script src="schedule.js"></script>
+</body>
+</html>

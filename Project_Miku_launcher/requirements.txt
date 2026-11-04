@@ -1,0 +1,6 @@
+PySide6>=6.5
+psutil>=5.9
+requests>=2.31
+PyYAML>=6.0
+# 선택: NVIDIA GPU / VRAM 사용량 표시 (없으면 그 칸만 비어 있어요)
+nvidia-ml-py>=12
