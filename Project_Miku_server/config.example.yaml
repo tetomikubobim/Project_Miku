@@ -85,8 +85,8 @@ tts:
   # ---- provider 가 edge 일 때 사용 (설치만 하면 됨, 목소리 복제 없음) ----
   edge:
     voice: ko-KR-SunHiNeural  # 목록: edge-tts --list-voices
-    rate: "+12%"              # 속도/음높이/볼륨은 부호가 붙어 있으니 반드시 따옴표로
-    pitch: "+45Hz"
+    rate: "+10%"              # 속도/음높이/볼륨은 부호가 붙어 있으니 반드시 따옴표로
+    pitch: "+40Hz"
     volume: "+0%"
     emotions:                 # 감정별로 위 기본값에 '더하는' 값 (예: 기본 pitch +12Hz 에 happy +2Hz = +14Hz). 지워도 됨
       happy:    { rate: "+0%",  pitch: "+0Hz" }
