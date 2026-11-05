@@ -4,6 +4,8 @@ import os
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (QCheckBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget)
 
+from .update_box import UpdateBox
+
 
 class PathRow(QWidget):
     def __init__(self, caption, is_dir, parent=None):
@@ -54,6 +56,8 @@ class LauncherPage(QWidget):
         self.info.setStyleSheet("color: gray;")
         self.info.setWordWrap(True)
         lay.addWidget(self.info)
+        self.updates = UpdateBox(core)
+        lay.addWidget(self.updates)
         row = QHBoxLayout()
         reset = QPushButton("모든 설정 기본값으로 초기화…")
         reset.setToolTip("런처 / 서버(config.yaml) / 클라(config.json) 설정을 배포 때의 기본값으로 되돌려요")
@@ -77,6 +81,7 @@ class LauncherPage(QWidget):
         self.auto_client.setChecked(bool(s["auto_start_client"]))
         self.hidden.setChecked(bool(s["start_hidden"]))
         self.show_tray.setChecked(bool(s["show_tray"]))
+        self.updates.load()
         self.info.setText(f"지금 쓰는 서버 폴더: {s.server_dir or '(못 찾음)'}\n지금 쓰는 클라 폴더: {s.client_dir or '(못 찾음)'}\n"
                           "폴더를 비워 두면 런처 옆의 Project_Miku_server / Project_Miku 를 자동으로 찾아요. 설정 파일: " + s.path)
 
@@ -114,6 +119,11 @@ class LauncherPage(QWidget):
         s["auto_start_client"] = self.auto_client.isChecked()
         s["start_hidden"] = self.hidden.isChecked()
         s["show_tray"] = self.show_tray.isChecked()
+        try:
+            self.updates.store()
+        except ValueError as e:
+            QMessageBox.warning(self, "런처 설정", str(e))
+            return
         try:
             s.save()
         except OSError as e:

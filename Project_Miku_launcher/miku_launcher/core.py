@@ -17,6 +17,7 @@ from .procs import CRASHED, STOPPING, ManagedProcess, StartError, find_electron,
 from .resources import ResourceMonitor
 from .server_config import ServerConfig
 from .settings_store import LauncherSettings
+from .updater import UpdateService
 
 SERVER_START_GRACE = 150.0     # 서버가 응답하기까지 기다려 주는 시간 (모델 로딩 포함)
 CLIENT_STOP_WAIT = 2.5         # 클라(Electron)는 정상 종료 요청(taskkill)에 거의 응답하지 않아서, 오래 기다려도 결국 강제 종료가 된다
@@ -40,6 +41,7 @@ class LauncherCore:
                       FileTail(self.hub, "rvc", lambda: self.config.log_files()["rvc"] if self.config.dir else "")]
         self.installer = InstallManager(InstallEnv(self.base_dir, self.settings, server_config=lambda: self.config,
                                                    set_config=lambda path, v: self.save_server_config({path: v})), busy_check=self._install_blocker)
+        self.updates = UpdateService(self)   # GitHub 릴리스 업데이트 (확인/설치/되돌리기)
         self._busy = {"server": False, "client": False}
         self._closing = False
         self._client_json = (None, None)   # (mtime, serverUrl)
@@ -83,9 +85,11 @@ class LauncherCore:
             t.start()
         if self.config.legacy_local_exists():
             self.log("예전 설정 파일(config.local.json)이 있어요. '서버 설정' 탭의 [설정 병합]으로 config.yaml 에 합치세요 (지금은 config.yaml 값만 적용돼요).")
+        self.updates.start_background()
         self.run_async("autostart", self._autostart)
 
     def _autostart(self):
+        self.updates.startup()   # 새 버전 확인 (자동 설치를 켰다면 서버/클라를 켜기 전에 설치까지)
         self.poller.check()
         if self.settings["auto_start_server"]:
             if self.poller.last:
@@ -120,6 +124,7 @@ class LauncherCore:
             if t.is_alive():
                 self.log(f"런처 종료: {name} 정리가 40초 안에 끝나지 않았어요. 그대로 넘어가요")
         self.installer.cancel()
+        self.updates.stop()
         self.poller.stop()
         self.monitor.stop()
         for t in self.tails:
@@ -412,6 +417,9 @@ class LauncherCore:
             out.append("서버 폴더에 config.yaml 이 없어요")
         if self.config.legacy_local_exists():
             out.append("예전 설정 파일(config.local.json)이 남아 있어요: '서버 설정' 탭에서 [설정 병합]을 실행하세요")
+        w = self.updates.warning()
+        if w:
+            out.append(w)
         return out
 
     def _server_light(self, h):

@@ -47,6 +47,21 @@ pythonw start_launcher.pyw        <- cmd 창 없이 실행 (또는 start_launche
 - **자동 백업**: [기본값 초기화] 를 하기 전에 지금 설정이 `자동백업-날짜시각` 프리셋으로 자동 저장됩니다 (API 키 제외, 최근 5개 유지). 초기화한 뒤 이 프리셋을 불러오면 값을 되살릴 수 있습니다.
 - 새 config.example.yaml 로 새로 시작하는 방법: 프리셋 저장 → 기존 `config.yaml` 을 다른 이름으로 옮기기 → [config.yaml 만들기] → 프리셋 불러오기.
 
+## 업데이트 (GitHub 연동)
+
+**런처** 탭의 '업데이트 (GitHub)' 묶음에서 합니다. 저장소 주소(`owner/name`)를 적으면 GitHub 의 **최신 정식 릴리스**를 확인해서 지금 버전(`프로젝트 폴더/VERSION`)보다 높으면 알려 줍니다.
+
+- **끄고 켜기**: '새 버전 확인'을 끄면 GitHub 에 아무것도 요청하지 않습니다 (버튼으로 직접 확인은 가능). '자동으로 설치'는 기본이 꺼져 있고, 켜면 **런처를 켤 때** 새 버전을 설치한 뒤 서버/클라를 켭니다. 켜 둔 동안 새 버전이 나오면 알려 주기만 하고(12시간마다 확인, `launcher.json` 의 `update_interval_hours`), 설치는 다음 시작이나 버튼으로 합니다.
+- **설치 과정**: 서버/클라 끄기 → 설정을 `자동백업-…` 프리셋으로 저장 → 릴리스 소스 zip 받기 → 바뀔 파일만 백업(`updates/backups/`)하고 덮어쓰기 → 끝나면 다시 켜기. 하나라도 실패하면 이미 바꾼 파일을 되돌리고 아무것도 바뀌지 않은 상태로 끝냅니다.
+- **건드리지 않는 것**: 서버 `config.yaml`, `persona.txt`, `chat_log/`, DB(`*.db`), `uploads/`, `audio/` / 클라 `config.json`, `models/`, `voice-models/`, `schedules.json`, `lyrics-cache/` / 런처 `launcher.json`, `presets/`, `tools/`, 그리고 `venv`, `node_modules`, 로그. 이미 있는 이 파일들은 릴리스에 들어 있어도 덮어쓰지 않습니다. 저장소에서 지워진 파일은 지우지 않습니다.
+- **패키지**: `requirements.txt` 나 `package.json`/`package-lock.json` 이 바뀌었고 설치 탭에서 이미 설치된 항목이면 자동으로 다시 설치합니다.
+- **되돌리기**: [마지막 업데이트 되돌리기]로 바뀐 파일을 백업에서 복원하고 새로 생긴 파일은 지웁니다 (백업은 최근 3개 유지).
+- **런처 자신**: 소스로 실행 중이면 런처 `.py` 도 같이 바뀌고 런처를 다시 켜면 적용됩니다. **exe 로 실행 중이면** 릴리스에 `MikuLauncher*.zip` (MikuLauncher.exe 와 `_internal` 이 들어 있는 압축 파일)이 있을 때만 교체합니다. 런처를 끌 때 교체하고, [런처 다시 시작]을 누르면 교체 뒤 바로 다시 켭니다. 그 zip 이 없으면 exe 는 그대로입니다.
+- **git 으로 받은 폴더**(프로젝트 폴더에 `.git` 이 있음)는 파일을 바꾸지 않습니다. `git pull` 로 업데이트하세요.
+- 공개 저장소만 지원합니다 (토큰 없이 GitHub API 를 씁니다). 확인할 때 GitHub(api.github.com)에 접속합니다.
+
+**릴리스 올리는 법 (배포하는 사람)**: 코드를 올린 뒤 GitHub 의 Releases 에서 태그를 `v1.0.1` 처럼 붙여 새 릴리스를 만들고(초안/사전 배포는 무시됩니다), 설명에 변경 내용을 적으면 런처 화면에 그대로 보입니다. 루트의 `VERSION` 도 같은 숫자로 맞춰 두세요. exe 를 같이 배포하려면 `MikuLauncher_win.zip` 처럼 `MikuLauncher` 로 시작하는 zip 을 릴리스 파일로 올립니다.
+
 ## 끄기
 
 - 창 X 는 **트레이로 숨기기**입니다. 트레이 메뉴의 **종료**(또는 트레이가 없을 때의 창 X)를 누르면 런처가 켠 클라와 서버(+GPT-SoVITS/RVC)를 **정상 종료를 먼저 시도하고, 안 되면 하위 프로세스까지 강제로** 끈 뒤 종료합니다.
@@ -71,6 +86,7 @@ python -m unittest discover -s tests -t .
 - `test_yamlpatch.py`: config.yaml 주석 보존 편집 / local 병합 (실제 설정 파일 모양의 픽스처, API 키는 가려 둠)
 - `test_core.py`: 로그, 프로세스 종료(말 안 듣는 하위 프로세스 포함), 설정 서비스, 리소스, 경고, 상태 계산
 - `test_presets.py`: config.yaml 만들기(덮어쓰기 금지), 프리셋 저장/불러오기, 형식이 바뀐 경우(없어진 항목·바뀐 이름·잘못된 값) 처리
+- `test_updater.py`: 버전 비교, 릴리스 확인 오류, 압축 풀기 안전 검사, 내 파일 보호, 백업/되돌리기, 실패 시 원상복구, 설치 전체 흐름 (네트워크 없이 가짜 응답으로)
 - `test_integration.py`: 진짜 `server.py` 와 가짜 electron 으로 시작 → 설정 저장/즉시 반영 → 서버만 재시작 → 클라 개별 종료 → 정상 종료 → 런처 종료 전 과정 (서버 의존성이 있고 Linux/Mac 일 때만 돌아요. `MIKU_SERVER_SRC` 로 서버 폴더 지정)
 
 ## 구조
@@ -88,7 +104,8 @@ miku_launcher/
   yamlpatch.py              주석을 지키는 yaml 값 편집 + local 병합
   extra_fields.py           서버 FIELDS 에 없는 항목(주소/포트/경로 등)
   settings_store.py         launcher.json
-  ui/                       PySide6 화면 (main_window, log_page, settings_page, launcher_page, resource_panel, widgets, app)
+  updater.py                GitHub 릴리스 확인 / 설치 / 되돌리기 (Qt 와 무관)
+  ui/                       PySide6 화면 (main_window, log_page, settings_page, launcher_page, update_box, resource_panel, widgets, app)
 ```
 
 나중에 exe 로 묶을 때는 `pyinstaller --noconsole --name MikuLauncher start_launcher.pyw` 정도로 시작하면 됩니다 (이 폴더 구조를 유지).

@@ -12,7 +12,13 @@ DEFAULTS = {
     "start_hidden": False,     # 창 없이 트레이로만 시작
     "show_tray": False,        # 트레이 아이콘 표시. 끄면 창을 닫을 때 런처(와 서버/클라)가 종료된다
     "poll_seconds": 2.0,
+    "update_repo": "",              # 업데이트를 받아 올 GitHub 저장소 ('owner/name' 또는 주소). 비우면 기본 저장소(updater.DEFAULT_REPO)
+    "update_check": True,           # 런처를 켤 때(와 켜 두는 동안 주기적으로) 새 버전이 있는지 확인
+    "update_auto_apply": False,     # 새 버전이 있으면 런처를 켤 때 자동으로 설치 (끄면 알려 주기만 하고 버튼으로 설치)
+    "update_interval_hours": 12,    # 켜 둔 동안 다시 확인하는 간격(시간)
+    "update_skip_version": "",      # '이 버전 건너뛰기'를 누른 버전
 }
+KEEP_ON_RESET = ("update_repo",)    # '기본값으로 초기화' 해도 지우지 않는 항목 (저장소 주소를 다시 적게 하지 않는다)
 NAME = "launcher.json"
 
 
@@ -61,7 +67,8 @@ class LauncherSettings:
 
     def reset(self):
         """모든 항목을 기본값(DEFAULTS)으로 되돌린다 (저장은 save() 로)."""
-        self.data = dict(DEFAULTS)
+        keep = {k: self.data[k] for k in KEEP_ON_RESET if k in self.data}
+        self.data = {**DEFAULTS, **keep}
 
     def save(self):
         tmp = self.path + ".tmp"

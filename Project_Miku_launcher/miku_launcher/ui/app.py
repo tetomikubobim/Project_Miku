@@ -62,6 +62,7 @@ class LauncherApp:
         self.tray_ok = self.tray_available and bool(self.core.settings["show_tray"])   # 트레이를 실제로 쓰는가 (끄면 창을 닫을 때 종료)
         self.window = MainWindow(self.core, self.icon, on_close_request=self.on_window_close)
         self.window.launcher_page.on_saved = self.apply_tray_setting
+        self.window.launcher_page.updates.on_restart = self.request_quit   # 런처 exe 교체: 끄면서 교체 스크립트가 새 런처를 켠다
         self.qapp.setWindowIcon(self.icon)
         self.quitting = False
         self.tray = None
@@ -183,6 +184,10 @@ class LauncherApp:
             return 0
         rc = self.qapp.exec()
         if self.quitting:
+            try:
+                self.core.updates.launch_pending_swap()   # 예약된 런처 교체가 있으면 런처가 끝난 뒤 적용·재시작
+            except Exception:  # noqa: BLE001
+                pass
             # 정리는 이미 끝났다. 파이썬 종료 처리(스레드/객체 정리)에서 멈추지 않게 바로 끝낸다
             sys.stdout and sys.stdout.flush()
             os._exit(rc)
