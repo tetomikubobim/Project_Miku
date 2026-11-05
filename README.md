@@ -4,7 +4,7 @@
 
 **Live2D 캐릭터의 스킨을 쓴 AI 어시스턴트**
 
-<img width="828" height="756" alt="스크린샷 2026-11-05 070959" src="https://github.com/user-attachments/assets/1e93680e-6cef-4f21-88e0-ec528a4ae3de" />
+<img width="1672" height="941" alt="나만의 AI 와이푸 만들기" src="https://github.com/user-attachments/assets/db9d9719-992f-45d4-ab99-bb01cf3b3249" />
 
 말을 걸면 듣고, 생각하고, 표정을 지으며, 목소리로 대답합니다.
 
@@ -56,7 +56,7 @@
 
 <!-- 영상은 GitHub 이슈/PR 입력창에 파일을 끌어다 놓으면 생기는 주소를 붙여 넣으면 됩니다
 https://github.com/user-attachments/assets/...
--->
+-->https://youtu.be/2FuOO6GZglg
 
 *(준비 중)*
 
