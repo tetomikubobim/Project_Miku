@@ -160,7 +160,7 @@ npm start
 
 ## 📄 라이선스
 
-직접 작성한 코드는 [MIT](LICENSE.md)입니다.
-Live2D Cubism Core, Hiyori 샘플 모델, 설치 중 받는 패키지·모델은 각자의 라이선스를 따릅니다.
-외부 리소스의 사용 및 배포에 관한 권리와 책임은 해당 리소스의 라이선스에 따릅니다.
-자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.
+- 직접 작성한 코드는 [MIT](LICENSE.md)입니다.
+- Live2D Cubism Core, Hiyori 샘플 모델, 설치 중 받는 패키지·모델은 각자의 라이선스를 따릅니다.
+- 외부 리소스의 사용 및 배포에 관한 권리와 책임은 해당 리소스의 라이선스에 따릅니다.
+- 자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.
