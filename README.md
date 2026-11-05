@@ -54,9 +54,7 @@
 
 ## 🎬 데모
 
-<!-- 영상은 GitHub 이슈/PR 입력창에 파일을 끌어다 놓으면 생기는 주소를 붙여 넣으면 됩니다
-https://github.com/user-attachments/assets/...
-[![YouTube Video](https://img.youtube.com/vi/2FuOO6GZglg/maxresdefault.jpg)](https://www.youtube.com/watch?v=2FuOO6GZglg)
+[![Project Miku 데모 영상](https://img.youtube.com/vi/2FuOO6GZglg/maxresdefault.jpg)](https://www.youtube.com/watch?v=2FuOO6GZglg)
 
 ## 🧩 구성
 
@@ -91,9 +89,9 @@ flowchart LR
 
 1. [Releases](../../releases)에서 `MikuLauncher.exe`를 다운합니다.
 2. 'Project_Miku_server/config.example.yaml'의 사본을 만든 다음, 파일 이름을 'config.yaml'로 고칩니다.
-4. **설치** 탭에서 서버 패키지와 클라이언트를 설치합니다. (음성 인식, RVC, GPT-SoVITS는 선택 설치)
-5. **서버 설정** 탭에서 LLM 제공자와 API 키를 입력합니다.
-6. **런처** 탭에서 서버와 클라이언트를 켭니다.
+3. **설치** 탭에서 서버 패키지와 클라이언트를 설치합니다. (음성 인식, RVC, GPT-SoVITS는 선택 설치)
+4. **서버 설정** 탭에서 LLM 제공자와 API 키를 입력합니다.
+5. **런처** 탭에서 서버와 클라이언트를 켭니다.
 
 ### 방법 2. 직접 실행
 
