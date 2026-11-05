@@ -145,6 +145,9 @@ npm start
 | [서버](Project_Miku_server/README.md) | `config.yaml` 설명, STT/TTS, 기억 |
 | [런처](Project_Miku_launcher/README.md) | 설치 탭, 설정 편집, 로그, 종료 방식 |
 
+## 🙏 참고한 프로젝트
+- [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber.git) 
+
 ## 🔒 개인 설정 파일
 
 `config.yaml`(API 키), `config.json`, `launcher.json`은 개인 설정이라 저장소에 올라가지 않습니다 (`.gitignore`).
