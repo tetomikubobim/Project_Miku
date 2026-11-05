@@ -56,7 +56,7 @@
 
 <!-- 영상은 GitHub 이슈/PR 입력창에 파일을 끌어다 놓으면 생기는 주소를 붙여 넣으면 됩니다
 https://github.com/user-attachments/assets/...
-[![YouTube Video](https://img.youtube.com/vi/2FuOO6GZglg/maxresdefault.jpg)](https://www.youtube.com/watch?v=영상ID)
+[![YouTube Video](https://img.youtube.com/vi/2FuOO6GZglg/maxresdefault.jpg)](https://www.youtube.com/watch?v=2FuOO6GZglg)
 
 ## 🧩 구성
 
