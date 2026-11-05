@@ -10,6 +10,7 @@ import requests
 
 from .installer import Env as InstallEnv, InstallManager
 from .jobobject import JobObject
+from . import presets
 from .logs import FileTail, LogHub
 from .poller import HealthPoller
 from .procs import CRASHED, STOPPING, ManagedProcess, StartError, find_electron, python_for_server
@@ -30,6 +31,7 @@ class LauncherCore:
         self.hub = LogHub(os.path.join(self.base_dir, "logs"))
         self.job = JobObject(log=lambda m: self.hub.add("launcher", m))
         self.config = ServerConfig(self.settings.server_dir, lambda: self.settings.client_dir)
+        self.presets = presets.PresetStore(os.path.join(self.base_dir, "presets"))   # 설정 프리셋 (런처 폴더의 presets/)
         self.server = ManagedProcess("server", self._build_server, self._sink, self.job, graceful=self._graceful_server, on_exit=self._on_exit)
         self.client = ManagedProcess("client", self._build_client, self._sink, self.job, on_exit=self._on_exit)
         self.poller = HealthPoller(self.base_url, float(self.settings["poll_seconds"] or 2.0))
@@ -242,6 +244,7 @@ class LauncherCore:
         if not example or not os.path.isfile(example):
             self.log("  서버: config.example.yaml 이 없어서 건너뛰어요")
         else:
+            self._auto_backup_preset()   # 되돌리기 전에 지금 설정을 프리셋으로 남겨 둔다 (나중에 불러와서 되살릴 수 있게)
             try:
                 cur = self.config.cfg_or_empty()
                 keep = {}
@@ -305,10 +308,10 @@ class LauncherCore:
         self.log("기본값 초기화가 끝났어요")
 
     # ---------- 서버 설정 저장 + 바로 반영 ----------
-    def save_server_config(self, changes):
-        """config.yaml 에 저장하고, 서버가 켜져 있으면 바로 다시 읽게 한다.
+    def save_server_config(self, changes, raw=None):
+        """config.yaml 에 저장하고, 서버가 켜져 있으면 바로 다시 읽게 한다. raw 는 프리셋 적용용 (설정 화면에 없는 값).
         돌려주는 값: {'changed', 'restart', 'reloaded', 'reload_error'}. 검사/저장 오류는 예외로 올린다 (ValueError, PatchError, ConfigUnavailable)."""
-        res = self.config.save(changes)
+        res = self.config.save(changes, raw=raw)
         res.update(reloaded=False, reload_error="")
         if res.get("server_changed", bool(res["changed"])) and self.poller.last:   # 클라이언트 항목만 바뀌었으면 서버를 다시 읽게 할 필요가 없다
             ok, err = self.reload_server_config()
@@ -327,6 +330,43 @@ class LauncherCore:
             return False, str(r.json().get("error") or r.text[:200])
         except ValueError:
             return False, f"HTTP {r.status_code}"
+
+    # ---------- config.yaml 처음 만들기 (덮어쓰기 금지) ----------
+    def create_server_config(self):
+        """config.example.yaml 로 config.yaml 을 만든다. 이미 있으면 FileExistsError (절대 덮어쓰지 않는다)."""
+        self.config.create_from_example()
+        self.log("config.example.yaml 로 config.yaml 을 만들었어요")
+        return self.config.path
+
+    # ---------- 설정 프리셋 ----------
+    def save_preset(self, name, include_secrets=False, overwrite=False):
+        """지금 config.yaml (과 클라이언트 항목) 의 값을 프리셋으로 저장한다. API 키는 include_secrets=True 일 때만 넣는다."""
+        values = presets.snapshot(self.config, include_secrets=include_secrets)
+        path = self.presets.save(name, values, secrets_included=include_secrets, overwrite=overwrite)
+        self.log(f"프리셋 '{presets.safe_name(name)}' 을 저장했어요 ({len(values)}개 항목{', API 키 포함' if include_secrets else ''})")
+        return path
+
+    def plan_preset(self, name):
+        """프리셋을 지금 설정 형식에 맞춰 보고 적용 계획(presets.Plan)을 돌려준다. 파일은 건드리지 않는다."""
+        return presets.plan(self.config, self.presets.load(name)["values"])
+
+    def apply_preset(self, plan):
+        """plan_preset 의 결과를 config.yaml 에 적용한다 (주석/순서 그대로, 직전 내용은 config.yaml.bak). save_server_config 와 같은 결과를 돌려준다."""
+        res = self.save_server_config(plan.fields, raw=plan.raw) if plan.count else {
+            "changed": [], "restart": [], "client_restart": [], "reloaded": False, "reload_error": "", "server_changed": False}
+        self.log(f"프리셋을 적용했어요 (적용 {len(res['changed'])}개, 건너뜀 {len(plan.skipped)}개)")
+        return res
+
+    def _auto_backup_preset(self):
+        """기본값 초기화 같은 큰 변경 전에 지금 설정을 '자동백업-날짜' 프리셋으로 남긴다 (API 키는 넣지 않고, 최근 5개만 유지). 실패해도 본 작업은 계속한다."""
+        try:
+            name = time.strftime(presets.AUTO_PREFIX + "%Y%m%d-%H%M%S")
+            values = presets.snapshot(self.config, include_secrets=False)
+            self.presets.save(name, values, secrets_included=False)
+            self.presets.prune(presets.AUTO_PREFIX, keep=5)
+            self.log(f"  서버: 지금 설정을 프리셋 '{name}' 으로 남겨 뒀어요 (설정 탭에서 불러올 수 있어요)")
+        except Exception as e:  # noqa: BLE001
+            self.log(f"  서버: 자동 백업 프리셋을 만들지 못했어요 (계속 진행): {e}")
 
     def migrate_local_config(self):
         res = self.config.migrate()

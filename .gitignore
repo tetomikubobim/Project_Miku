@@ -11,6 +11,7 @@ config.json
 config.json.bak
 # 런처 개인 설정
 launcher.json
+presets/
 
 # ===== 실행하면 생기는 데이터 =====
 *.db

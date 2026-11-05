@@ -15,6 +15,9 @@ class ConfigUnavailable(Exception):
     pass
 
 
+_MISSING = object()
+
+
 def _load_module(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
@@ -60,6 +63,31 @@ class ServerConfig:
     # ---------- 읽기 ----------
     def exists(self):
         return bool(self.path) and os.path.isfile(self.path)
+
+    @property
+    def example_path(self):
+        return os.path.join(self.dir, "config.example.yaml") if self.dir else ""
+
+    def can_create(self):
+        """config.yaml 이 없고 config.example.yaml 은 있어서 새로 만들 수 있는가."""
+        return bool(self.dir) and not os.path.lexists(self.path) and os.path.isfile(self.example_path)
+
+    def create_from_example(self):
+        """config.example.yaml 을 config.yaml 로 복사해서 처음 설정 파일을 만든다.
+        이미 config.yaml 이 있으면 절대 덮어쓰지 않는다 (FileExistsError). 'xb' 로 열어서 확인과 생성 사이에 파일이 생겨도 안전하다."""
+        if not self.dir:
+            raise ConfigUnavailable("서버 폴더를 찾지 못했어요")
+        if not os.path.isfile(self.example_path):
+            raise ConfigUnavailable("서버 폴더에 config.example.yaml 이 없어요")
+        with open(self.example_path, "rb") as src:
+            data = src.read()
+        try:
+            with open(self.path, "xb") as dst:
+                dst.write(data)
+        except FileExistsError:
+            raise FileExistsError("config.yaml 이 이미 있어서 만들지 않았어요 (지금 설정을 지키려고 덮어쓰지 않아요)") from None
+        self._cache = None
+        self.loaded_mtime = None
 
     def load(self):
         """(cfg dict, mtime_ns). 문법이 틀렸으면 ConfigUnavailable (메시지는 그대로 보여 줘도 된다)."""
@@ -201,15 +229,23 @@ class ServerConfig:
             clean[path] = v
         return clean, by
 
-    def save(self, changes):
+    def save(self, changes, raw=None):
         """검사 -> 바뀐 것만 저장. 서버 항목은 config.yaml 에(주석은 그대로), 클라이언트 항목(store=client)은 클라이언트 config.json 에.
+        raw: 설정 화면에 없는 단순 값 {경로: 값} (프리셋 적용용. presets.plan 이 미리 검사한 것만 넣는다). 서버 항목과 한 번에 저장해서 .bak 이 처음 상태로 남는다.
         {'changed', 'restart': [서버를 다시 켜야 적용되는 항목], 'client_restart': [클라이언트를 다시 시작해야 적용되는 항목], 'server_changed': bool}
         (ValueError/PatchError/ConflictError/ClientConfigError 는 그대로 올린다)"""
-        clean, by = self.validate(changes)
+        raw = dict(raw or {})
+        if changes:
+            clean, by = self.validate(changes)
+        elif raw:
+            clean, by = {}, {f["path"]: f for f in self.field_defs()}
+        else:
+            raise ValueError("바꿀 항목이 없어요")
         cfg, _ = self.load()
         server_clean = {p: v for p, v in clean.items() if by[p].get("store") != "client"}
         client_clean = {p: v for p, v in clean.items() if by[p].get("store") == "client"}
         changed = [p for p, v in server_clean.items() if _get(cfg, p, by[p].get("default")) != v]
+        raw_changed = [p for p, v in raw.items() if p not in by and not yamlpatch._same(_get(cfg, p, _MISSING), v)]
         client_changed = []
         for p, v in client_clean.items():
             key = p.split(".", 1)[1]
@@ -217,17 +253,19 @@ class ServerConfig:
             after = audio_latency_value(v)
             if (str(after) if after is not None else str(by[p].get("default") or "")) != before:
                 client_changed.append((p, key, after))
-        if not changed and not client_changed:
+        if not changed and not raw_changed and not client_changed:
             return {"changed": [], "restart": [], "client_restart": [], "server_changed": False}
-        if changed:
-            self.loaded_mtime = yamlpatch.apply_file(self.path, {p: server_clean[p] for p in changed}, expected_mtime_ns=self.loaded_mtime)
+        if changed or raw_changed:
+            patch = {p: server_clean[p] for p in changed}
+            patch.update({p: raw[p] for p in raw_changed})
+            self.loaded_mtime = yamlpatch.apply_file(self.path, patch, expected_mtime_ns=self.loaded_mtime)
             self._cache = None
         for _p, key, after in client_changed:
             self.client.write(key, after)
-        return {"changed": changed + [p for p, _k, _a in client_changed],
+        return {"changed": changed + raw_changed + [p for p, _k, _a in client_changed],
                 "restart": [by[p]["label"] for p in changed if by[p].get("restart")],
                 "client_restart": [by[p]["label"] for p, _k, _a in client_changed if by[p].get("client_restart")],
-                "server_changed": bool(changed)}
+                "server_changed": bool(changed or raw_changed)}
 
     # ---------- 예전 config.local.json ----------
     def legacy_local_exists(self):

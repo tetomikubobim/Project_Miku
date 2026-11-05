@@ -1,10 +1,10 @@
 """서버 설정 탭: 서버의 config.yaml 을 항목별로 고친다 (LLM, 음성, GPT-SoVITS, 음성 인식, 검색, 기억, 주소/경로).
 저장하면 config.yaml 의 주석은 그대로 두고 값만 바뀌고, 서버가 켜져 있으면 바로 다시 읽어 적용한다. 서버를 다시 켜야 하는 항목은 ↻ 로 표시한다."""
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-                               QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+                               QMessageBox, QPushButton, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
-from .. import yamlpatch
+from .. import presets, yamlpatch
 from ..client_config import ClientConfigError
 from ..server_config import ConfigUnavailable
 
@@ -68,6 +68,10 @@ class SettingsPage(QWidget):
         self.path_label = QLabel("")
         self.path_label.setStyleSheet("color: gray;")
         top.addWidget(self.path_label, 1)
+        self.create_btn = QPushButton("config.example.yaml 로 config.yaml 만들기")   # config.yaml 이 없을 때만 보임. 이미 있으면 절대 덮어쓰지 않음
+        self.create_btn.clicked.connect(lambda: self.create_config())
+        self.create_btn.setVisible(False)
+        top.addWidget(self.create_btn)
         self.merge_btn = QPushButton("설정 병합 (config.local.json → config.yaml)")
         self.merge_btn.clicked.connect(self.merge_legacy)
         top.addWidget(self.merge_btn)
@@ -75,6 +79,23 @@ class SettingsPage(QWidget):
         reload_btn.clicked.connect(self.reload)
         top.addWidget(reload_btn)
         lay.addLayout(top)
+        pre = QHBoxLayout()
+        pre.addWidget(QLabel("프리셋"))
+        self.preset_box = QComboBox()
+        self.preset_box.setMinimumWidth(220)
+        pre.addWidget(self.preset_box, 1)
+        self.preset_load_btn = QPushButton("불러오기")
+        self.preset_load_btn.setToolTip("고른 프리셋의 값을 지금 설정에 적용해요. 지금 형식에 안 맞는 항목은 건너뛰고 알려 줘요")
+        self.preset_load_btn.clicked.connect(lambda: self.load_preset())
+        pre.addWidget(self.preset_load_btn)
+        self.preset_save_btn = QPushButton("현재 설정 저장…")
+        self.preset_save_btn.setToolTip("지금 config.yaml 의 값을 이름을 붙여 프리셋으로 저장해요 (런처 폴더의 presets/)")
+        self.preset_save_btn.clicked.connect(lambda: self.save_preset())
+        pre.addWidget(self.preset_save_btn)
+        self.preset_del_btn = QPushButton("삭제")
+        self.preset_del_btn.clicked.connect(lambda: self.delete_preset())
+        pre.addWidget(self.preset_del_btn)
+        lay.addLayout(pre)
         self.tabs = QTabWidget()
         lay.addWidget(self.tabs, 1)
         self.msg = QLabel("")
@@ -92,6 +113,7 @@ class SettingsPage(QWidget):
         bottom.addWidget(self.save_restart_btn)
         lay.addLayout(bottom)
         self.editors = {}   # path -> (getter, 처음 값)
+        self._config_ok = False
         self.reload()
 
     # ---------- 불러오기 ----------
@@ -101,14 +123,19 @@ class SettingsPage(QWidget):
         cfg = self.core.config
         self.path_label.setText(cfg.path or "서버 폴더를 찾지 못했어요")
         self.merge_btn.setVisible(cfg.legacy_local_exists())
+        self.create_btn.setVisible(cfg.can_create())
         try:
             fields = cfg.fields()
         except ConfigUnavailable as e:
-            self.tabs.addTab(QLabel(str(e)), "서버 설정")
-            self.msg.setText(str(e))
+            text = ("config.yaml 이 아직 없어요. 위의 [config.example.yaml 로 config.yaml 만들기] 버튼을 눌러 주세요."
+                    if cfg.can_create() else str(e))
+            self.tabs.addTab(QLabel(text), "서버 설정")
+            self.msg.setText(message or text)
             self._set_enabled(False)
+            self.refresh_presets()
             return
         self._set_enabled(True)
+        self.refresh_presets()
         groups = {}
         for f in fields:
             groups.setdefault(f["group"], []).append(f)
@@ -132,8 +159,10 @@ class SettingsPage(QWidget):
         self.msg.setText(message)
 
     def _set_enabled(self, on):
+        self._config_ok = on
         self.save_btn.setEnabled(on)
         self.save_restart_btn.setEnabled(on)
+        self.preset_save_btn.setEnabled(on)
 
     # ---------- 저장 ----------
     def _edited(self):
@@ -162,21 +191,125 @@ class SettingsPage(QWidget):
         except (yamlpatch.PatchError, ConfigUnavailable, ClientConfigError) as e:
             self.msg.setText(f"저장하지 않았어요: {e}")
             return
-        n = len(res["changed"])
-        parts = [f"저장했어요 ({n}개)."]
+        self.reload(self._result_text(res, "저장했어요"))
+        if restart:
+            self._restart_server()
+
+    def _result_text(self, res, verb):
+        parts = [f"{verb} ({len(res['changed'])}개)."]
         if res["reloaded"]:
             parts.append("서버에 바로 반영했어요.")
         elif res["reload_error"]:
             parts.append(f"서버에 알리지 못했어요: {res['reload_error']}")
-        elif not self.core.poller.last:
+        elif res["changed"] and not self.core.poller.last:
             parts.append("서버를 켤 때 적용돼요.")
         if res["restart"]:
             parts.append("서버를 다시 켜야 적용되는 항목: " + ", ".join(res["restart"]))
         if res.get("client_restart"):
             parts.append("클라이언트를 다시 시작해야 적용되는 항목: " + ", ".join(res["client_restart"]))
-        self.reload(" ".join(parts))
-        if restart:
-            self._restart_server()
+        return " ".join(parts)
+
+    # ---------- config.yaml 처음 만들기 (덮어쓰기 금지) ----------
+    def create_config(self):
+        try:
+            self.core.create_server_config()
+        except FileExistsError as e:     # 그 사이에 생겼거나 이미 있었음: 건드리지 않고 알려 주기만 한다
+            self.reload(str(e))
+            return
+        except (ConfigUnavailable, OSError) as e:
+            self.msg.setText(f"만들지 못했어요: {e}")
+            return
+        self.reload("config.yaml 을 만들었어요. 사용할 LLM 과 API 키를 입력하고 저장하세요.")
+
+    # ---------- 프리셋 ----------
+    def refresh_presets(self, select=None):
+        names = self.core.presets.names()
+        cur = select or self.preset_box.currentText()
+        self.preset_box.clear()
+        self.preset_box.addItems(names)
+        if cur in names:
+            self.preset_box.setCurrentText(cur)
+        self.preset_load_btn.setEnabled(bool(names) and self._config_ok)
+        self.preset_del_btn.setEnabled(bool(names))
+
+    def save_preset(self):
+        Yes, No, Cancel = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No, QMessageBox.StandardButton.Cancel
+        if self._edited() and QMessageBox.question(
+                self, "프리셋 저장", "화면에서 바꾼 값이 아직 저장되지 않았어요.\n프리셋에는 저장된 값(config.yaml)이 들어가요. 계속할까요?") != Yes:
+            return
+        name, ok = QInputDialog.getText(self, "프리셋 저장", "프리셋 이름:")
+        if not ok:
+            return
+        try:
+            name = presets.safe_name(name)
+        except ValueError as e:
+            self.msg.setText(f"저장하지 않았어요: {e}")
+            return
+        overwrite = False
+        if self.core.presets.exists(name):
+            if QMessageBox.question(self, "프리셋 저장", f"'{name}' 프리셋이 이미 있어요. 덮어쓸까요?") != Yes:
+                return
+            overwrite = True
+        keys = QMessageBox.question(
+            self, "프리셋 저장",
+            "API 키도 프리셋에 포함할까요?\n(포함하면 프리셋 파일에 키가 그대로 적혀요. 남과 나눌 프리셋이라면 '아니오'를 고르세요. "
+            "키를 빼고 저장해도 불러올 때 지금 키는 그대로 남아요.)",
+            Yes | No | Cancel, No)
+        if keys == Cancel:
+            return
+        try:
+            self.core.save_preset(name, include_secrets=(keys == Yes), overwrite=overwrite)
+        except (ValueError, OSError, ConfigUnavailable, yamlpatch.PatchError, ClientConfigError) as e:
+            self.msg.setText(f"저장하지 않았어요: {e}")
+            return
+        self.refresh_presets(select=name)
+        self.msg.setText(f"프리셋 '{name}' 을 저장했어요.")
+
+    def load_preset(self):
+        name = self.preset_box.currentText()
+        if not name:
+            self.msg.setText("불러올 프리셋을 먼저 고르세요.")
+            return
+        try:
+            plan = self.core.plan_preset(name)
+        except (ValueError, OSError, ConfigUnavailable, yamlpatch.PatchError) as e:
+            self.msg.setText(f"불러오지 못했어요: {e}")
+            return
+        if not plan.count:
+            QMessageBox.information(self, "프리셋 불러오기", f"'{name}' 프리셋에서 바꿀 항목이 없어요.\n\n" + plan.describe())
+            return
+        text = f"프리셋 '{name}' 을 적용할까요?\n\n" + plan.describe(limit=15) + "\n\n적용하기 전 config.yaml 은 config.yaml.bak 으로 남아요."
+        if self._edited():
+            text += "\n(화면에서 바꾸고 저장하지 않은 값은 사라져요)"
+        if QMessageBox.question(self, "프리셋 불러오기", text) != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            res = self.core.apply_preset(plan)
+        except ValueError as e:
+            self.msg.setText(f"적용하지 않았어요: {e}")
+            return
+        except yamlpatch.ConflictError as e:
+            self.reload(f"적용하지 않았어요: {e}")
+            return
+        except (yamlpatch.PatchError, ConfigUnavailable, ClientConfigError, OSError) as e:
+            self.msg.setText(f"적용하지 않았어요: {e}")
+            return
+        extra = f" 건너뛴 항목 {len(plan.skipped)}개." if plan.skipped else ""
+        self.reload(self._result_text(res, f"프리셋 '{name}' 을 적용했어요") + extra)
+
+    def delete_preset(self):
+        name = self.preset_box.currentText()
+        if not name:
+            return
+        if QMessageBox.question(self, "프리셋 삭제", f"프리셋 '{name}' 을 지울까요?") != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.core.presets.delete(name)
+        except OSError as e:
+            self.msg.setText(f"지우지 못했어요: {e}")
+            return
+        self.refresh_presets()
+        self.msg.setText(f"프리셋 '{name}' 을 지웠어요.")
 
     def _restart_server(self):
         self.core.run_async("server", self.core.restart_server if self.core.server.alive or self.core.poller.last else self.core.start_server)
