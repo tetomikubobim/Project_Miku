@@ -143,6 +143,7 @@ npm start
 
 | 문서 | 내용 |
 |---|---|
+| [설치 및 설정 가이드](https://github.com/tetomikubobim/Project_Miku/wiki) | 설치 방법 및 설정에 대해 자세하게 기술된 가이드 |
 | [클라이언트](Project_Miku_client/README.md) | 모델 추가, 감정 연결, 설정 창 |
 | [음성 명령 가이드](Project_Miku_client/COMMANDS.md) | 음악, 볼륨, 일정, 먼저 말 걸기 |
 | [서버](Project_Miku_server/README.md) | `config.yaml` 설명, STT/TTS, 기억 |
