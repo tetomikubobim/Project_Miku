@@ -1,27 +1,37 @@
-MIT License
+# Project Miku License
 
-Copyright (c) 2026 TTomphilips(tetomikubobim)
+Copyright (c) 2026 TTomphilips (tetomikubobim)
+Source: https://github.com/tetomikubobim/Project_Miku
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+다음 조건을 지키는 한, 누구나 이 소프트웨어를 사용, 복제, 수정, 재배포할 수 있습니다.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. **비상업적 이용**: 개인적, 비상업적 목적의 사용·수정·재배포를 허용합니다.
+   상업적 이용(판매, 유료 서비스·제품에 포함, 수익 창출을 목적으로 하는 사용 등)은
+   저작권자의 사전 서면 허가가 필요합니다.
+2. **저작권 표시**: 재배포할 때는 위 저작권 고지, 이 라이선스 전문, 원본 출처
+   (저장소 주소)를 포함해야 합니다.
+3. **수정본 명시**: 수정본을 재배포할 때는 Project Miku를 기반으로 제작되었으며
+   수정되었음을 명시해야 합니다.
+4. **제3자 구성요소**: Live2D Cubism Core, Hiyori 샘플 모델, 설치 과정에서 받는
+   패키지·모델 등은 각자의 라이선스를 따르며, 이 라이선스는 그 권리를 바꾸지 않습니다.
+   (THIRD_PARTY_NOTICES.md 참고)
+5. **보증 없음**: 이 소프트웨어는 "있는 그대로" 제공되며, 어떠한 보증도 하지 않습니다.
+   저작권자는 이 소프트웨어의 사용으로 발생한 손해에 책임지지 않습니다.
 
 ---
-이 라이선스는 이 저장소의 **직접 작성한 코드**에만 적용됩니다.
-Live2D Cubism Core, Hiyori 샘플 모델, 설치 과정에서 받는 패키지/모델, 그리고
-캐릭터(하츠네 미쿠 등)와 관련된 권리는 각자의 라이선스를 따릅니다.
-자세한 내용은 THIRD_PARTY_NOTICES.md 를 보세요.
+
+# Project Miku License (English summary)
+
+You may use, copy, modify, and redistribute this software under these conditions:
+
+1. **Non-commercial use only.** Commercial use (selling it, bundling it into paid
+   products or services, or using it to generate revenue) requires the copyright
+   holder's prior written permission.
+2. **Attribution.** Redistributions must include the copyright notice, this license,
+   and a link to the original repository.
+3. **Modified versions** must state that they are based on Project Miku and have been modified.
+4. **Third-party components** (Live2D Cubism Core, the Hiyori sample model, packages and
+   models downloaded during installation) remain under their own licenses.
+5. **No warranty.** The software is provided "as is", without warranty of any kind.
+
+Versions published before this license took effect remain available under the MIT License.
