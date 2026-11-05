@@ -12,7 +12,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![License](https://img.shields.io/badge/license-Non--Commercial-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 <!-- 대표 이미지 또는 GIF를 아래 주석을 풀고 경로를 맞춰 넣으세요
 <img src="docs/images/hero.gif" width="720" alt="Project Miku 미리보기">
@@ -162,12 +162,6 @@ npm start
 
 ## 📄 라이선스
 
-본 프로젝트의 소스 코드는 공개되어 있으며, 개인적인 사용과 수정 및 재배포를 허용합니다.
-
-- 재배포 시 원작자의 저작권 및 출처를 표시해 주세요.
-- 수정 및 재배포 시 원본 프로젝트를 기반으로 제작되었음을 명시해 주세요.
-- 상업적 이용은 제작자의 사전 허가가 필요합니다.
-
-Live2D Cubism Core, Hiyori 샘플 모델 및 설치 과정에서 다운로드되는 외부 패키지와 모델은 각각의 별도 라이선스를 따릅니다.
-
-자세한 내용은 [LICENSE.md](LICENSE.md) 및 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인해 주세요.
+직접 작성한 코드는 [MIT](LICENSE.md)입니다.
+Live2D Cubism Core, Hiyori 샘플 모델, 캐릭터(하츠네 미쿠 등), 설치 중 받는 패키지·모델은 각자의 라이선스를 따릅니다.
+자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.
