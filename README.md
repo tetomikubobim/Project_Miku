@@ -160,6 +160,6 @@ npm start
 
 ## 📄 라이선스
 
-직접 작성한 코드는 [MIT](LICENSE.md)입니다.
-Live2D Cubism Core, Hiyori 샘플 모델, 캐릭터(하츠네 미쿠 등), 설치 중 받는 패키지·모델은 각자의 라이선스를 따릅니다.
-자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.
+-직접 작성한 코드는 [MIT](LICENSE.md)입니다.
+-Live2D Cubism Core, Hiyori 샘플 모델 등 설치 중 받는 패키지·모델은 각자의 라이선스를 따릅니다.
+-자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.
