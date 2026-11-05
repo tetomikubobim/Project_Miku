@@ -84,7 +84,22 @@ export function buildModelSettings(resolved) {
   //    happy.exp3.json -> "happy", 기쁨.exp3.json -> "기쁨". 이름이 곧 감정 태그다.
   //    같은 이름이면 모션보다 표정을 우선한다 (모션을 먼저 등록하고 표정이 덮어쓴다).
   if (files) {
-    for (const f of files.filter((x) => /\.motion3\.json$/i.test(x))) {
+    // 3-0) 파일명이 idle / idle1 / idle2 / idle_3 ... 인 모션은 대기 모션(Idle 그룹)으로 등록한다 (감정 태그로는 쓰지 않음)
+    const isIdleName = (f) => /^idle[\s_-]?\d*$/i.test(baseName(f));
+    const idleGroup = Object.keys(fr.Motions).find((g) => g.toLowerCase() === 'idle') || 'Idle';
+    // 번호 없는 idle 이 기본(맨 앞), 그다음 idle1, idle2 … 순. 같은 이름이 여러 폴더에 있으면 경로가 짧은 것 하나만 쓴다
+    const idleNum = (f) => { const d = baseName(f).match(/\d+/); return d ? Number(d[0]) : -1; };
+    const idleFiles = files.filter((x) => /\.motion3\.json$/i.test(x) && isIdleName(x))
+      .sort((p, q) => idleNum(p) - idleNum(q) || p.length - q.length);
+    const seenIdle = new Set();
+    for (const f of idleFiles) {
+      const k = lower(baseName(f));
+      if (seenIdle.has(k)) continue;
+      seenIdle.add(k);
+      const list = (fr.Motions[idleGroup] ||= []);
+      if (!list.some((mo) => norm(mo.File) === norm(f))) { list.push({ File: f }); report.injectedMotions++; }
+    }
+    for (const f of files.filter((x) => /\.motion3\.json$/i.test(x) && !isIdleName(x))) {
       const key = lower(baseName(f));
       if (!key) continue;
       let found = findMotion(f);

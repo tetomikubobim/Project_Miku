@@ -28,8 +28,8 @@
 | 패키지 | 라이선스 |
 |---|---|
 | Electron 33 | MIT |
-| pixi.js 6 | MIT |
-| pixi-live2d-display | MIT |
+| pixi.js 8 | MIT |
+| untitled-pixi-live2d-engine | MIT |
 | onnxruntime-node | MIT |
 | @ennuicastr/webrtcaec3.js | BSD-3-Clause |
 

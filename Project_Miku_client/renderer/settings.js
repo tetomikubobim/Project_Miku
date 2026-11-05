@@ -24,6 +24,9 @@ export const CLIENT_FIELDS = [
   { path: 'showThink', label: '행동 묘사(💭) 표시', type: 'bool', group: '화면', def: true },
   { path: 'showEmotionTag', label: '감정 태그 표시', type: 'bool', group: '화면', def: true },
   { path: 'idleMotion', label: '대기모션 자동재생', type: 'bool', group: '화면', restart: true, def: true },
+  { path: 'tapIdleChange', label: '모델 클릭하면 대기모션 바꾸기', type: 'bool', group: '화면', def: true, hint: '대기모션이 2개 이상일 때 (파일 이름을 idle1, idle2 … 로 두면 자동 인식)' },
+  { path: 'idleKeepPick', label: '클릭해서 고른 대기모션 계속 유지', type: 'bool', group: '화면', def: true, hint: '끄면 다음 대기모션은 다시 무작위' },
+  { path: 'idleGap', label: '대기모션 사이 쉬는 시간(초)', type: 'float', min: 0, max: 120, group: '화면', def: 8 },
   { path: 'artMeshColors', label: 'VTube Studio 아트메시 투명도/색 적용', type: 'bool', group: '화면', def: true, hint: '스튜디오에서 투명하게 만든 워터마크 등이 여기서도 투명해져요' },
 
   { path: 'lyrics.enabled', label: '실시간 가사 (재생 중인 곡 가사를 말풍선 자리에)', type: 'bool', group: '가사', def: true, hint: '스포티파이/유튜브 등이 윈도우에 알리는 곡 정보로 알송에서 가사를 찾아요 (Windows)' },

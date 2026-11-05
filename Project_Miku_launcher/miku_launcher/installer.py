@@ -481,6 +481,18 @@ def _import_missing(py, modules):
     return procs.missing_modules(py, modules) if py else list(modules)
 
 
+def _node_pkg_version(client_dir, name):
+    """클라 폴더 node_modules 에 설치된 패키지의 버전 (없거나 못 읽으면 None)."""
+    try:
+        with open(os.path.join(client_dir, "node_modules", *name.split("/"), "package.json"), encoding="utf-8") as f:
+            return str(json.load(f).get("version") or "") or None
+    except (OSError, ValueError):
+        return None
+
+
+CLIENT_PIXI_MAJOR = 8   # 클라(renderer/boot.js)가 요구하는 pixi.js 메이저 버전
+
+
 def _spec_exists(py, name):
     return not _import_missing(py, (name,))
 
@@ -554,7 +566,15 @@ class ClientPackages(Module):
         if not env.client_dir:
             return "missing", "클라 폴더를 찾지 못했어요 ('런처' 탭에서 지정)"
         exe = os.path.join(env.client_dir, "node_modules", "electron", "dist", "electron.exe" if WIN else "electron")
-        return ("ok", "electron 설치됨") if os.path.isfile(exe) else ("missing", "npm install 이 필요해요")
+        if not os.path.isfile(exe):
+            return "missing", "npm install 이 필요해요"
+        # electron 만 있으면 옛 버전(pixi.js 6 등)이 남아 있어도 "설치됨"으로 보이니, 클라가 요구하는 라이브러리 버전도 확인한다
+        pixi = _node_pkg_version(env.client_dir, "pixi.js")
+        if not pixi or not pixi.split(".")[0].isdigit() or int(pixi.split(".")[0]) != CLIENT_PIXI_MAJOR:
+            return "missing", f"설치 필요: pixi.js {CLIENT_PIXI_MAJOR} 가 필요해요 (지금: {pixi or '없음'}). '다시 설치'를 눌러 주세요"
+        if _node_pkg_version(env.client_dir, "untitled-pixi-live2d-engine") is None:
+            return "missing", "설치 필요: Live2D 엔진(untitled-pixi-live2d-engine)이 없어요. '다시 설치'를 눌러 주세요"
+        return "ok", f"electron 설치됨 · pixi.js {pixi}"
 
     def install(self, job):
         e = job.env

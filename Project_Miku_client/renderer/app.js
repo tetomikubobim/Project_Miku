@@ -25,8 +25,20 @@ import { ITEM_DEFAULT, normalizeItem, itemRect, moveItem, scaleItem, buildMask, 
 // 에러가 나면 위치를 알 수 있게 스택까지 콘솔에 남긴다
 window.addEventListener('error', (e) => console.error('ERR>', e.message, e.error && e.error.stack));
 
-const { Application } = PIXI;
-const { Live2DModel } = PIXI.live2d;
+// PixiJS 8 + untitled-pixi-live2d-engine (Cubism 5 의 곱하기/스크린 색까지 그린다)
+const { Application, extensions } = PIXI;
+// 엔진 UMD 가 노출하는 이름이 버전마다 달라서 후보를 찾아본다. 못 찾으면 로그에 전역 이름을 남긴다.
+function findLive2D() {
+  const cands = [PIXI.live2d, PIXI, window.PIXI_LIVE2D, window.UntitledPixiLive2dEngine, window.untitledPixiLive2dEngine, window.Live2DEngine, window];
+  for (const c of cands) if (c && c.Live2DModel) return c;
+  try {
+    for (const k of Object.keys(window)) { const v = window[k]; if (v && typeof v === 'object' && v.Live2DModel) return v; }
+  } catch { /* 일부 전역은 읽기 실패 */ }
+  return null;
+}
+const L2D = findLive2D();
+if (!L2D) console.error('[engine] untitled-pixi-live2d-engine 을 찾지 못했어요. 전역 이름:', Object.keys(window).filter((k) => /live2d|pixi/i.test(k)).join(', '));
+const { Live2DModel, Live2DPlugin } = L2D || {};
 
 // 창은 모니터 작업 영역 전체를 덮는다. 모델은 그 안에서 자유롭게 움직인다.
 const BASE_MODEL_HEIGHT = 593;   // 배율 1.0 일 때 모델 높이(px)
@@ -283,6 +295,27 @@ function setupMotionDiagnostics(m) {
   try {
     const mm = m.internalModel.motionManager;
     mm.on('motionStart', (group, index) => console.info(`[motion] 시작 ${group}#${index}`));
+    idleCursor = -1; idleNow = -1; idleNext = 0; // 모델이 바뀌면 선택 초기화
+    // 기본(#0)이 아닌 대기 모션이 끝나면 멈춰 있지 말고 곧바로 기본 대기 모션으로 복귀
+    mm.on('motionStart', (group, index) => { idleNow = (mm.groups && group === mm.groups.idle) || String(group).toLowerCase() === 'idle' ? index : -1; });
+    mm.on('motionFinish', () => {
+      const was = idleNow; idleNow = -1;
+      if (was > 0 && config.tapIdleChange !== false) {
+        idleCursor = 0;
+        const g = Object.keys(mm.definitions || {}).find((k) => k.toLowerCase() === 'idle');
+        if (g) playIdleIndex(g, 0);
+      }
+    });
+    // 클릭으로 대기 모션을 골랐으면 자동 대기 모션도 무작위 대신 그 모션을 계속 재생
+    if (typeof mm.startRandomMotion === 'function' && !mm._idlePinPatched) {
+      mm._idlePinPatched = true;
+      const origRandom = mm.startRandomMotion.bind(mm);
+      mm.startRandomMotion = (group, priority) => {
+        const g = mm.groups && mm.groups.idle;
+        if (config.idleKeepPick !== false && idleCursor >= 0 && g && group === g) return mm.startMotion(group, idleCursor, priority);
+        return origRandom(group, priority);
+      };
+    }
     // 대기 모션 사이에 쉬는 시간: 모션이 끝나고 idleGap 초(기본 8) 뒤에 다음 대기 모션을 시작
     const st = mm.state;
     if (st && typeof st.shouldRequestIdleMotion === 'function' && !st._gapPatched) {
@@ -1739,11 +1772,70 @@ window.addEventListener('mouseup', (e) => {
 // 부위 판정은 라이브러리(model.hitTest)가 model3.json 의 HitAreas 로 한다. 부위 이름이 Body 면 TapBody 그룹을 재생.
 // 그룹 이름은 대소문자/구분자를 무시하고 찾는다: TapBody, tap_body, tap-body ...
 const normKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+// 클릭하면 대기 모션을 다음 것으로 바꾼다 (Idle 그룹에 2개 이상일 때). config.tapIdleChange=false 면 끔
+var idleNow = -1, idleNext = 0; // idleNow: 지금 재생 중인 대기 모션 번호(없으면 -1), idleNext: 다음에 고를 번호
+var idleCursor = -1; // 클릭으로 고른 대기 모션 번호. -1 이면 무작위
+// 대기 모션 전환 시: 대기 모션들이 건드리는 파라미터를 기본값으로 되돌린 뒤 새 모션을 시작한다
+// (모션은 자기가 키를 가진 파라미터만 움직이므로, 안 되돌리면 이전 모션의 마지막 자세가 남는다)
+var idleParamCache = new WeakMap();
+async function idleParamIds(group) {
+  const mm = model.internalModel.motionManager;
+  if (idleParamCache.has(model)) return idleParamCache.get(model);
+  const ids = new Set();
+  const list = (mm.definitions && mm.definitions[group]) || [];
+  for (const def of list) {
+    try {
+      const url = model.internalModel.settings.resolveURL(def.File);
+      const json = await (await fetch(url)).json();
+      for (const c of json.Curves || []) if (c.Target === 'Parameter') ids.add(c.Id);
+    } catch (e) { console.warn('[idle] 모션 파라미터 읽기 실패', def.File, e); }
+  }
+  idleParamCache.set(model, ids);
+  return ids;
+}
+async function playIdleIndex(group, index) {
+  try {
+    const mm = model.internalModel.motionManager;
+    mm.stopAllMotions();
+    const cm = model.internalModel.coreModel;
+    const ids = await idleParamIds(group);
+    // Core 모델의 파라미터 배열에 직접 쓴다 (프레임워크의 getParameterIndex 는 문자열 id 를 못 알아본다)
+    const raw = typeof cm.getModel === 'function' ? cm.getModel() : cm._model;
+    const rp = raw && raw.parameters;
+    let n = 0;
+    if (rp && rp.ids && rp.values && rp.defaultValues) {
+      const all = Array.from(rp.ids);
+      for (const id of ids) {
+        const i = all.indexOf(id);
+        if (i >= 0) { rp.values[i] = rp.defaultValues[i]; n++; }
+      }
+    }
+    if (typeof cm.saveParameters === 'function') cm.saveParameters();
+    console.info(`[idle] 파라미터 ${n}/${ids.size}개 기본값으로 초기화`);
+  } catch (e) { console.warn('[idle] 파라미터 초기화 실패', e); }
+  return model.motion(group, index, 3);
+}
+function changeIdleMotion() {
+  if (!model || config.tapIdleChange === false) return false;
+  const defs = (model.internalModel.motionManager && model.internalModel.motionManager.definitions) || {};
+  const group = Object.keys(defs).find((g) => g.toLowerCase() === 'idle');
+  const n = group && defs[group] ? defs[group].length : 0;
+  if (n < 2) { console.info(`[tap] 대기 모션 전환 불가: Idle 그룹 모션 ${n}개 (그룹: ${Object.keys(defs).join(', ') || '없음'}) — 2개 이상 필요`); return false; }
+  // 기본 대기 모션 = Idle#0. 다른 모션이 재생 중일 때 클릭하면 기본으로 돌아가고,
+  // 기본이 재생 중(또는 쉬는 중)일 때 클릭하면 다음 모션(1, 2, 3 … 순환)으로 바뀐다.
+  let next;
+  if (idleNow > 0) next = 0;
+  else { idleNext = idleNext >= 1 && idleNext < n - 1 ? idleNext + 1 : 1; next = idleNext; }
+  idleCursor = next;
+  playIdleIndex(group, next).then((ok) => console.info(`[tap] 대기 모션 변경 -> ${group}#${next} ${ok ? '재생' : '(무시됨)'}`));
+  return true;
+}
 function tapModel(x, y) {
+  console.info('[tap] 클릭 감지');
   if (!model || config.tapReaction === false) return;
   let areas = [];
   try { areas = model.hitTest(x, y) || []; } catch (e) { console.warn('[tap] 판정 실패', e); return; }
-  if (!areas.length) { console.info('[tap] 부위 없음 (model3 HitAreas 밖)'); return; }
+  if (!areas.length) { console.info('[tap] 부위 없음 (model3 HitAreas 밖)'); changeIdleMotion(); return; }
   const defs = (model.internalModel.motionManager && model.internalModel.motionManager.definitions) || {};
   const groups = Object.keys(defs);
   for (const area of areas) {
@@ -1754,6 +1846,7 @@ function tapModel(x, y) {
     model.motion(group, undefined, 2).then((ok) => console.info(`[tap] ${area} -> ${group} ${ok ? '재생' : '(이미 재생 중이라 무시)'}`));
     return;
   }
+  changeIdleMotion(); // 터치 모션 그룹이 없으면 대기 모션 전환
 }
 
 // 우클릭: 트레이와 같은 메뉴 (이 이벤트는 창이 마우스를 받는 곳 = 모델/상자 위에서만 온다)
@@ -1888,15 +1981,19 @@ async function main() {
   bubble.canRecall = () => !(lyrics && lyrics.isActive());   // 가사가 떠 있으면 마우스를 올려도 지난 대사로 가사를 가리지 않는다
   setupLyrics();
 
-  Live2DModel.registerTicker(PIXI.Ticker);
-  app = new Application({
-    view: canvas,
+  if (!Live2DModel) { bubble.show('Live2D 엔진을 불러오지 못했어요. npm install 후 다시 실행하고 콘솔 로그를 확인하세요.'); return; }
+  // 렌더러를 만들기 전에 Live2D 렌더 파이프를 등록해야 한다 (PixiJS 8)
+  if (Live2DPlugin) extensions.add(Live2DPlugin);
+  app = new Application();
+  await app.init({
+    canvas,
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundAlpha: 0,
     antialias: true,
     autoDensity: true,
     resolution: window.devicePixelRatio || 1,
+    preference: 'webgl',
     preserveDrawingBuffer: true, // 픽셀 단위 판정/측정(readPixels)에 필요
   });
 

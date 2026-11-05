@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' file: blob: data:; script-src 'self' 'unsafe-eval' file:; style-src 'self' 'unsafe-inline'; connect-src 'self' file: blob: data: ws: wss: http: https:; media-src 'self' file: blob: data:; img-src 'self' file: blob: data:;" />
+        content="default-src 'self' file: blob: data:; script-src 'self' 'unsafe-eval' file:; style-src 'self' 'unsafe-inline'; connect-src 'self' file: blob: data: ws: wss: http: https:; media-src 'self' file: blob: data:; img-src 'self' file: blob: data:; worker-src 'self' blob: file:;" />
   <title>Project Miku</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; user-select: none; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
@@ -308,8 +308,7 @@
 
   <!-- 필요한 라이브러리: Cubism Core 는 vendor/ 에 직접 넣어야 합니다 (README 참고) -->
   <script src="../vendor/live2dcubismcore.min.js"></script>
-  <script src="../node_modules/pixi.js/dist/browser/pixi.min.js"></script>
-  <script src="../node_modules/pixi-live2d-display/dist/cubism4.min.js"></script>
-  <script type="module" src="./app.js"></script>
+  <!-- pixi.js 8 / Live2D 엔진 / app.js 는 boot.js 가 순서대로 읽는다 (하나라도 못 읽으면 이유를 화면과 miku.log 에 남긴다) -->
+  <script src="./boot.js"></script>
 </body>
 </html>
