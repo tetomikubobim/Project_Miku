@@ -83,9 +83,9 @@ flowchart LR
 ## 📋 요구 사항
 
 - Windows
-- Python 3.10 이상 (서버, 런처)
-- Node.js (클라이언트)
 - LLM API 키 (Gemini / OpenAI / Groq 중 하나) **또는** 로컬 Ollama
+- (직접 실행할 때만) Python 3.10 이상, Node.js
+  - 런처로 설치하면 필요한 Python과 Node.js를 자동으로 받습니다.
 
 ## 🚀 빠른 시작
 
