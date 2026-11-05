@@ -371,4 +371,4 @@ voice-models/      silero_vad.onnx, speaker.onnx (내려받은 모델. 레포에
 
 ## 라이선스
 
-이 프로젝트의 코드는 MIT 라이선스입니다 (저장소의 `LICENSE`). Live2D Cubism Core, Hiyori 모델, 설치 시 내려받는 패키지/모델 등은 각자의 라이선스를 따릅니다 (`THIRD_PARTY_NOTICES.md`). 하츠네 미쿠 및 Crypton Future Media 와는 관련 없는 비공식 프로젝트입니다.
+이 프로젝트의 코드는 MIT 라이선스입니다 (저장소의 `LICENSE`). Live2D Cubism Core, Hiyori 모델, 설치 시 내려받는 패키지/모델 등은 각자의 라이선스를 따릅니다 (`THIRD_PARTY_NOTICES.md`). 
