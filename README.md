@@ -12,7 +12,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-Non--Commercial-orange)
 
 <!-- 대표 이미지 또는 GIF를 아래 주석을 풀고 경로를 맞춰 넣으세요
 <img src="docs/images/hero.gif" width="720" alt="Project Miku 미리보기">
