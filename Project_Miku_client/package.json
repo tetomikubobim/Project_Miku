@@ -18,5 +18,10 @@
   },
   "allowScripts": {
     "electron@33.4.11": true
+  },
+  "overrides": {
+    "extract-zip": {
+      "yauzl": "^3.3.1"
+    }
   }
 }

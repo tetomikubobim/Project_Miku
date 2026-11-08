@@ -582,6 +582,11 @@ class ClientPackages(Module):
             raise InstallError("클라 폴더를 찾지 못했어요. '런처' 탭에서 클라 폴더를 지정하세요")
         node, npm = job.ensure_node()
         job.run([npm, "install", "--no-audit", "--no-fund"], cwd=e.client_dir, extra_env=job.node_env(node))
+        # Node 최신 버전에서 electron 압축 해제가 중간에 끊겨 electron.exe 가 빠지는 경우가 있어, 없으면 한 번 다시 받는다
+        exe = os.path.join(e.client_dir, "node_modules", "electron", "dist", "electron.exe" if WIN else "electron")
+        if not os.path.isfile(exe):
+            job.say("electron 실행 파일이 없어서 다시 받아요")
+            job.run([npm, "rebuild", "electron", "--ignore-scripts=false", "--foreground-scripts"], cwd=e.client_dir, extra_env=job.node_env(node))
 
     def uninstall(self, job):
         e = job.env
