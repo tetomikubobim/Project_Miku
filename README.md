@@ -83,6 +83,73 @@ flowchart LR
 - (직접 실행할 때만) Python 3.10 이상, Node.js
   - 런처로 설치하면 필요한 Python과 Node.js를 자동으로 받습니다.
 
+### 권장 사양
+
+아래 수치는 대략적인 기준이에요. 모델 양자화 방식과 대화 길이(컨텍스트)에 따라 달라집니다.
+
+**웹 LLM 사용 (Gemini / OpenAI / Groq)**
+
+LLM은 외부 서버에서 돌아가서 내 PC 부담이 작아요.
+
+| 구성 | 최소 | 권장 |
+|---|---|---|
+| 기본 (대화 + edge-tts) | CPU 4코어, RAM 8GB, GPU 없음 | RAM 16GB |
+| + 음성 인식 (faster-whisper) | RAM 8GB (CPU로 실행, 느림) | RAM 16GB, NVIDIA GPU VRAM 4GB 이상 |
+| + GPT-SoVITS / RVC | NVIDIA GPU VRAM 6GB | NVIDIA GPU VRAM 8GB 이상, RAM 16GB 이상 |
+
+- 디스크 여유 공간 5GB 이상 (음성 모델은 따로 필요해요)
+- 인터넷 연결 필요
+
+**로컬 LLM 사용 (Ollama + Gemma 4)**
+
+Ollama 0.20 이상이 필요해요. VRAM은 4비트 양자화(Q4) 기준이고, 음성 인식이나 GPT-SoVITS / RVC를 같이 쓰면 그만큼 더 필요해요.
+
+| 모델 | 명령어 | VRAM | RAM |
+|---|---|---|---|
+| E2B | `ollama run gemma4:e2b` | 4GB | 8GB |
+| E4B | `ollama run gemma4:e4b` | 6~8GB | 16GB |
+| 12B | `ollama run gemma4:12b` | 8GB (빠듯함) / 12GB 권장 | 16GB |
+| 26B (MoE) | `ollama run gemma4:26b` | 16GB 이상 | 32GB |
+| 31B | `ollama run gemma4:31b` | 24GB 이상 | 32GB |
+
+- NVIDIA GPU를 권장해요. GPU 없이 CPU만 쓰면 E2B 정도가 아니면 많이 느려요.
+- 음성 기능까지 함께 쓴다면 **VRAM 12GB 이상**에서 E4B 또는 12B를 추천해요.
+
+**AMD 그래픽카드를 쓴다면**
+
+- 로컬 LLM은 Ollama의 AMD(Radeon) 지원으로 GPU 가속이 가능해요. RX 9000 시리즈는 설치본에 따라 별도 설정이 필요할 수 있으니, `ollama ps`에서 GPU로 동작하는지 확인하세요.
+- 음성 인식(faster-whisper), GPT-SoVITS, RVC는 NVIDIA(CUDA) 기준이라 AMD에서는 CPU로 동작하고 느려요. 웹 LLM을 쓰고 음성 기능을 안 쓴다면 AMD도 문제없어요.
+
+<details>
+<summary><b>AMD에서 RVC / GPT-SoVITS를 GPU로 돌리는 방법 (직접 설정, 런처 미지원)</b></summary>
+
+AMD가 제공하는 Windows용 PyTorch(ROCm)로 바꾸면 돼요. RX 9070 / 9070 XT / 9060 XT, RX 7900 XTX 등이 공식 지원 목록에 있어요. 아직 프리뷰 단계라 아래 내용은 바뀔 수 있고, 이 프로젝트에서 직접 검증하지는 못했어요.
+
+1. 그래픽 드라이버를 25.20.01.14 이상으로 설치합니다.
+2. **Python 3.12**가 필요해요. 쓰려는 환경(RVC는 `tools/rvc/venv`)의 Python이 3.12인지 확인하세요.
+3. 그 환경을 켜고 기존 torch를 지운 뒤, AMD 휠을 설치합니다. 최신 주소는 [AMD 문서](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/windows/install-pytorch.html)를 확인하세요.
+
+```bash
+pip uninstall torch torchvision torchaudio
+pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl
+pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchaudio-2.6.0a0%2B1a8f621-cp312-cp312-win_amd64.whl
+pip install --no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl
+```
+
+4. 인식됐는지 확인합니다. `True`가 나와야 해요.
+
+```bash
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+5. PyTorch에서는 AMD GPU도 `cuda`라는 이름으로 보여요. RVC나 GPT-SoVITS 설정에 장치(device) 항목이 있으면 `cuda`(또는 auto)로 두세요. GPT-SoVITS도 쓰는 Python 환경에 같은 방법을 적용하면 됩니다.
+
+- 다른 패키지를 설치하다가 torch가 CUDA/CPU용으로 다시 덮어써질 수 있어요. 그러면 3번을 다시 하세요.
+- 런처의 설치 탭에서 RVC를 다시 설치하거나 업데이트하면 torch가 원래대로 돌아올 수 있어요.
+- 에러가 나면 `numpy<2`로 낮춰 보세요.
+
+</details>
+
 ## 🚀 빠른 시작
 
 ### 방법 1. 런처로 한 번에 (추천)
